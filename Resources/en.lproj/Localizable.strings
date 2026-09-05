@@ -59,7 +59,6 @@
 "menu.restartOnChange" = "Restart track on rate change";
 "menu.restoreOnStop" = "Restore previous output when Music stops";
 "menu.route" = "Route Music to this device";
-"menu.track" = "Track: %@ (from %@)";
 "menu.unknownRate" = "When the rate is unknown";
 "menu.wire" = "Wire: %@";
 "music.badReply" = "Unexpected reply from Music.";
@@ -71,3 +70,5 @@
 "source.fallback" = "fallback";
 "source.file" = "file";
 "source.metadata" = "Music";
+"menu.nothingPlaying" = "Nothing playing";
+"menu.trackFormat" = "%@ (%@)";

@@ -59,7 +59,6 @@
 "menu.restartOnChange" = "Reiniciar a faixa ao trocar a taxa";
 "menu.restoreOnStop" = "Restaurar a saída anterior quando o Music parar";
 "menu.route" = "Enviar o Music para este dispositivo";
-"menu.track" = "Faixa: %@ (via %@)";
 "menu.unknownRate" = "Quando a taxa é desconhecida";
 "menu.wire" = "Barramento: %@";
 "music.badReply" = "Resposta inesperada do Music.";
@@ -71,3 +70,5 @@
 "source.fallback" = "fallback";
 "source.file" = "arquivo";
 "source.metadata" = "Music";
+"menu.nothingPlaying" = "Nada tocando";
+"menu.trackFormat" = "%@ (%@)";

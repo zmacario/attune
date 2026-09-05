@@ -38,10 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ? " " + rateLabel(status.deviceRate).replacingOccurrences(of: " kHz", with: "k")
             : ""
         button.contentTintColor = status.problem == nil ? nil : .systemOrange
-        // Deliberately does not rebuild the menu. menuNeedsUpdate already rebuilds it on
-        // every open, and doing it here tore out the row under the pointer mid-click —
-        // the replacement row starts unhighlighted, so the highlight vanished until the
-        // mouse moved again. A menu should not reshuffle while someone is using it.
+        // Updates the header in place rather than rebuilding: a rebuild tore out the row
+        // under the pointer mid-click, and the replacement row starts unhighlighted, so
+        // the highlight vanished until the mouse moved. Text changes move nothing.
+        updateHeader(status)
     }
 
     // MARK: Menu
@@ -52,31 +52,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rebuild()
     }
 
+    /// Held so the header can be refreshed without rebuilding the menu around it.
+    private var headerItems: [NSMenuItem] = []
+
+    private func updateHeader(_ status: EngineStatus) {
+        guard headerItems.count == 4 else { return }
+
+        let device = status.deviceRate > 0
+            ? "\(status.targetName) · \(rateLabel(status.deviceRate))"
+            : status.targetName
+
+        var track = localized("menu.nothingPlaying")
+        if let title = status.trackTitle {
+            track = (status.playing ? "▶ " : "⏸ ") + title
+            if let detected = status.detected {
+                track += " · " + localized("menu.trackFormat", detected.summary, detected.source.label)
+            }
+        }
+
+        // One line carries whichever of these matters most right now.
+        let note = status.problem.map { "⚠︎ " + $0 } ?? status.lastAction ?? "—"
+
+        headerItems[0].attributedTitle = attributed(device, bold: true)
+        headerItems[1].attributedTitle = attributed(localized("menu.wire", status.wireFormat ?? "—"))
+        headerItems[2].attributedTitle = attributed(track)
+        headerItems[3].attributedTitle = attributed(note, colour: status.problem == nil ? nil : .systemOrange)
+    }
+
+    private func attributed(_ string: String, bold: Bool = false, colour: NSColor? = nil) -> NSAttributedString {
+        let font = bold ? NSFont.menuBarFont(ofSize: 0) : NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
+        return NSAttributedString(string: string, attributes: [
+            .font: font,
+            .foregroundColor: colour ?? (bold ? NSColor.labelColor : NSColor.secondaryLabelColor),
+        ])
+    }
+
     private func rebuild() {
         menu.removeAllItems()
         let status = Engine.shared.status
 
-        // — Current state —
-        let headline = status.deviceRate > 0
-            ? "\(status.targetName) · \(rateLabel(status.deviceRate))"
-            : status.targetName
-        menu.addItem(disabled(headline, bold: true))
-        if let wire = status.wireFormat { menu.addItem(disabled(localized("menu.wire", wire), small: true)) }
-        if let track = status.trackTitle {
-            menu.addItem(disabled((status.playing ? "▶ " : "⏸ ") + track, small: true))
-        }
-        if let detected = status.detected {
-            menu.addItem(disabled(localized("menu.track", detected.summary, detected.source.label), small: true))
-        }
-        if let action = status.lastAction { menu.addItem(disabled(action, small: true)) }
-        if let problem = status.problem {
-            let item = disabled("⚠︎ " + problem, small: true)
-            item.attributedTitle = NSAttributedString(
-                string: "⚠︎ " + problem,
-                attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
-                             .foregroundColor: NSColor.systemOrange])
-            menu.addItem(item)
-        }
+        // Four header rows, always. The count has to be fixed: the menu can only be
+        // updated in place while it is open if nothing above the toggles appears or
+        // disappears, and anything that shifts rows vertically moves them out from under
+        // the pointer mid-click.
+        headerItems = (0..<4).map { _ in disabled("", small: true) }
+        headerItems.forEach(menu.addItem)
+        updateHeader(status)
 
         menu.addItem(.separator())
 
