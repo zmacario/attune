@@ -24,7 +24,6 @@
 "check.volumeNone" = "• O volume não é exposto ao macOS — o macOS não está escalando as amostras";
 "check.wireFormat" = "• Formato do barramento: %@";
 "engine.eqProblem" = "Equalizador ligado";
-"engine.noDevice" = "Nenhum dispositivo de saída encontrado.";
 "engine.rateUnsupported" = "%@ não aceita %@.";
 "engine.setRateFailed" = "Falha ao ajustar %@";
 "engine.switchFailed" = "Não foi possível trocar o dispositivo de saída.";
@@ -71,3 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "Sobre o BitPerfect DX";
 "about.credits" = "Mantém o DAC na taxa de amostragem nativa da faixa que o Music está tocando, para o macOS não ter o que reamostrar.";
+"menu.noDAC" = "Nenhum DAC conectado";
+"menu.dacs" = "DACs";
+"menu.otherOutputs" = "Outras saídas";

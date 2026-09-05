@@ -36,6 +36,11 @@ if let index = CommandLine.arguments.firstIndex(of: "--inspect"),
     exit(0)
 }
 
+if CommandLine.arguments.contains("--resolve") {
+    print(Settings.shared.explainResolution())
+    exit(0)
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

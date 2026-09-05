@@ -61,12 +61,107 @@ final class Settings {
         set { defaults.set(newValue, forKey: "fallbackRate") }
     }
 
-    /// First-run device pick: the DAC by name, else any USB output, else the current default.
+    /// Remembered alongside the UID so an absent device can still be named in the menu —
+    /// a device that is not connected cannot be looked up.
+    var targetDeviceName: String? {
+        get { defaults.string(forKey: "targetDeviceName") }
+        set { defaults.set(newValue, forKey: "targetDeviceName") }
+    }
+
+    func setTargetDevice(_ device: AudioDevice) {
+        targetDeviceUID = device.uid
+        targetDeviceName = device.name
+    }
+
+    /// When each connected DAC was plugged in, by UID.
+    ///
+    /// CoreAudio does not report how long a device has been attached, so the app keeps its
+    /// own record: a UID that turns up where it was not before is stamped now, and one
+    /// that disappears is forgotten, so unplugging and replugging counts as new. Persisted
+    /// so that ordering survives a relaunch with everything still attached.
+    private var connectionTimes: [String: Date] {
+        get { (defaults.dictionary(forKey: "connectionTimes") as? [String: Date]) ?? [:] }
+        set { defaults.set(newValue, forKey: "connectionTimes") }
+    }
+
+    /// The connected DACs, most recently plugged in first.
+    func dacsByRecency(_ outputs: [AudioDevice]) -> [AudioDevice] {
+        let dacs = outputs.filter(\.isWiredDAC)
+        let present = Set(dacs.map(\.uid))
+        var times = connectionTimes
+
+        // One timestamp for the whole sweep: calling Date() inside the loop gave each
+        // device a microsecond-apart stamp in arbitrary Set order, so devices that were
+        // already attached when the app first ran came out in a random order instead of
+        // tying and falling through to the name.
+        let now = Date()
+        var changed = false
+        for uid in present where times[uid] == nil {
+            times[uid] = now
+            changed = true
+        }
+        for uid in times.keys where !present.contains(uid) {
+            times.removeValue(forKey: uid)
+            changed = true
+        }
+        if changed { connectionTimes = times }
+
+        // Everything plugged in before the app first ran shares one timestamp; name is the
+        // tie-break so the order does not shuffle between launches.
+        return dacs.sorted {
+            let left = times[$0.uid] ?? .distantPast
+            let right = times[$1.uid] ?? .distantPast
+            return left == right ? $0.name < $1.name : left > right
+        }
+    }
+
+    /// What `--resolve` prints: the ordering the rules are applied to, and why one won.
+    func explainResolution() -> String {
+        let outputs = AudioDevice.allOutputs()
+        let dacs = dacsByRecency(outputs)     // populates the record before it is read
+        let times = connectionTimes
+        let stamp = DateFormatter()
+        stamp.dateFormat = "HH:mm:ss"
+
+        var lines = ["DACs by recency:"]
+        if dacs.isEmpty { lines.append("    (none connected)") }
+        for dac in dacs {
+            let seen = times[dac.uid].map { stamp.string(from: $0) } ?? "?"
+            lines.append("    \(dac.name)  (\(dac.transport))  connected \(seen)")
+        }
+
+        let preferred = targetDeviceName ?? "(never chosen)"
+        let preferredPresent = targetDeviceUID.map { uid in outputs.contains { $0.uid == uid } } ?? false
+        lines.append("Chosen in app: \(preferred)\(preferredPresent ? " — connected" : " — not connected")")
+
+        let rule: String
+        if preferredPresent { rule = "1. the device chosen in the app" }
+        else if !dacs.isEmpty { rule = "2. most recently connected DAC" }
+        else { rule = "3. built-in speakers" }
+        lines.append("Rule applied: \(rule)")
+        lines.append("Target: \(resolveTargetDevice()?.name ?? "none")")
+        return lines.joined(separator: "\n")
+    }
+
+    /// Where the audio should go, in the order the user asked for:
+    ///
+    /// 1. the device they last chose in this app, if it is connected;
+    /// 2. otherwise the most recently connected DAC;
+    /// 3. otherwise the built-in speakers.
+    ///
+    /// The saved device is a preference rather than something the app waits around for: a
+    /// DAC that turns up can take over without anyone opening a menu.
     func resolveTargetDevice() -> AudioDevice? {
         let outputs = AudioDevice.allOutputs()
-        if let uid = targetDeviceUID, let match = outputs.first(where: { $0.uid == uid }) { return match }
-        if let dx3 = outputs.first(where: { $0.name.localizedCaseInsensitiveContains("DX3") }) { return dx3 }
-        if let usb = outputs.first(where: { $0.isUSB }) { return usb }
-        return AudioDevice.defaultOutput
+        let dacs = dacsByRecency(outputs)
+
+        if let uid = targetDeviceUID, let match = outputs.first(where: { $0.uid == uid }) {
+            // Backfill the name whenever the device is present, both to migrate settings
+            // written before it was recorded and to follow a device that gets renamed.
+            if match.name != targetDeviceName { targetDeviceName = match.name }
+            return match
+        }
+        if let mostRecent = dacs.first { return mostRecent }
+        return outputs.first { $0.transport == "Built-in" } ?? AudioDevice.defaultOutput
     }
 }

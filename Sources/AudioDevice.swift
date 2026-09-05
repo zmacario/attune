@@ -69,7 +69,14 @@ struct AudioDevice: Identifiable, Hashable {
     let outputChannels: Int
     let transport: String
 
-    var isUSB: Bool { transport == "USB" }
+    /// An external converter on a cable. Excludes Bluetooth and AirPlay, which resample
+    /// on their own and cannot be bit-perfect anyway, and the built-in output, which is
+    /// not a device anyone buys a DAC to avoid using.
+    ///
+    /// DisplayPort and HDMI are deliberately out: they are wired and they do carry digital
+    /// audio, but they are a monitor or a TV, not something to adopt on sight. They stay
+    /// selectable by hand.
+    var isWiredDAC: Bool { ["USB", "Thunderbolt", "FireWire"].contains(transport) }
 
     static func allOutputs() -> [AudioDevice] {
         CA.array(CA.system, CA.addr(kAudioHardwarePropertyDevices), AudioDeviceID.self)
@@ -111,6 +118,7 @@ struct AudioDevice: Identifiable, Hashable {
         case kAudioDeviceTransportTypeAggregate:   return "Aggregate"
         case kAudioDeviceTransportTypeVirtual:     return "Virtual"
         case kAudioDeviceTransportTypeThunderbolt: return "Thunderbolt"
+        case kAudioDeviceTransportTypeFireWire:    return "FireWire"
         default:                                   return "Other"
         }
     }

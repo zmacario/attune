@@ -95,9 +95,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         guard headerViews.count == 3 else { return }
 
-        let device = status.deviceRate > 0
-            ? "\(status.targetName) · \(rateLabel(status.deviceRate))"
-            : status.targetName
+        let device: String
+        if !status.targetConnected {
+            device = status.targetName          // already reads as a sentence of its own
+        } else if status.deviceRate > 0 {
+            device = "\(status.targetName) · \(rateLabel(status.deviceRate))"
+        } else {
+            device = status.targetName
+        }
 
         var track = localized("menu.nothingPlaying")
         if let title = status.trackTitle {
@@ -205,15 +210,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func deviceMenu() -> NSMenuItem {
         let parent = NSMenuItem(title: localized("menu.outputDevice"), action: nil, keyEquivalent: "")
         let sub = NSMenu()
-        let current = settings.resolveTargetDevice()
-        for device in AudioDevice.allOutputs() {
-            let item = NSMenuItem(title: "\(device.name)  (\(device.transport))",
-                                  action: #selector(pickDevice(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = device.uid
-            item.state = device.uid == current?.uid ? .on : .off
-            sub.addItem(item)
+
+        // The tick marks the device actually in play, not the saved preference — the two
+        // differ whenever the preferred one is unplugged and another has taken over, and
+        // showing the preference there would point at a device doing nothing.
+        let active = settings.resolveTargetDevice()
+        let outputs = AudioDevice.allOutputs()
+        let dacs = outputs.filter(\.isWiredDAC)
+        let others = outputs.filter { !$0.isWiredDAC }
+
+        func addSection(_ title: String, _ devices: [AudioDevice]) {
+            guard !devices.isEmpty else { return }
+            if sub.numberOfItems > 0 { sub.addItem(.separator()) }
+            let header = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            sub.addItem(header)
+            for device in devices {
+                let item = NSMenuItem(title: "    \(device.name)  (\(device.transport))",
+                                      action: #selector(pickDevice(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = device
+                item.state = device.uid == active?.uid ? .on : .off
+                sub.addItem(item)
+            }
         }
+
+        addSection(localized("menu.dacs"), dacs)
+        addSection(localized("menu.otherOutputs"), others)
         parent.submenu = sub
         return parent
     }
@@ -249,7 +272,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func reapply()        { Engine.shared.reapply() }
 
     @objc private func pickDevice(_ sender: NSMenuItem) {
-        settings.targetDeviceUID = sender.representedObject as? String
+        guard let device = sender.representedObject as? AudioDevice else { return }
+        settings.setTargetDevice(device)
         Engine.shared.reapply()
     }
 
@@ -418,6 +442,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var fixable: [String] = []
         let status = Engine.shared.status
 
+        if settings.resolveTargetDevice() == nil {
+            lines.append(localized("menu.noDAC"))
+        }
         if let device = settings.resolveTargetDevice() {
             lines.append(localized("check.output", device.name, rateLabel(device.nominalSampleRate)))
             if let wire = device.currentPhysicalFormat { lines.append(localized("check.wireFormat", wire.describedBriefly)) }
