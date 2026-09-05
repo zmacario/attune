@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
+        refreshLoginItemState()
         Engine.shared.onStatusChange = { [weak self] status in self?.render(status) }
         Engine.shared.start()
     }
@@ -31,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         Engine.shared.refreshStatus()
+        refreshLoginItemState()
         rebuild()
     }
 
@@ -80,8 +82,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add("Open Audio MIDI Setup", #selector(openAudioMIDI), on: nil)
 
         menu.addItem(.separator())
-        let loginItem = add(loginItemTitle, #selector(toggleLogin), on: loginItemChecked)
-        loginItem.isEnabled = loginItemEnabled
+        let loginItem = add(loginItemState.title, #selector(toggleLogin), on: loginItemState.checked)
+        loginItem.isEnabled = loginItemState.enabled
         add("Quit", #selector(quit), on: nil, key: "q")
     }
 
@@ -171,66 +173,85 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Login item
 
-    /// SMAppService has four states, and treating anything that is not `.enabled` as
-    /// "off" is what made this menu item look broken: macOS answers `.requiresApproval`
-    /// when the user has to finish the job in System Settings, and calling register()
-    /// again from there changes nothing.
-    @available(macOS 13, *)
-    private var loginStatus: SMAppService.Status { SMAppService.mainApp.status }
+    /// SMAppService.status is synchronous, and this session saw it block indefinitely
+    /// when read outside a normally launched app. Reading it while building the menu
+    /// would put that risk on the main thread, so the menu draws a cached value that is
+    /// refreshed in the background.
+    private struct LoginItemState {
+        var title = "Launch at login"
+        var checked = false
+        var enabled = true
+    }
+    private var loginItemState = LoginItemState()
 
-    private var loginItemTitle: String {
-        guard #available(macOS 13, *) else { return "Launch at login (needs macOS 13)" }
-        switch loginStatus {
-        case .enabled:          return "Launch at login"
-        case .requiresApproval: return "Launch at login (approve in System Settings…)"
-        case .notFound:         return "Launch at login (move the app to /Applications)"
-        default:                return "Launch at login"
+    /// Treating anything that is not `.enabled` as "off" is what made this item look
+    /// broken: macOS answers `.requiresApproval` when it wants the user to finish the
+    /// job in System Settings, and calling register() again from there changes nothing.
+    private func refreshLoginItemState() {
+        guard #available(macOS 13, *) else {
+            loginItemState = LoginItemState(title: "Launch at login (needs macOS 13)",
+                                            checked: false, enabled: false)
+            return
         }
-    }
-
-    private var loginItemChecked: Bool {
-        guard #available(macOS 13, *) else { return false }
-        return loginStatus == .enabled
-    }
-
-    private var loginItemEnabled: Bool {
-        guard #available(macOS 13, *) else { return false }
-        return loginStatus != .notFound
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let state: LoginItemState
+            switch SMAppService.mainApp.status {
+            case .enabled:
+                state = LoginItemState(title: "Launch at login", checked: true, enabled: true)
+            case .requiresApproval:
+                state = LoginItemState(title: "Launch at login (approve in System Settings…)",
+                                       checked: false, enabled: true)
+            case .notFound:
+                state = LoginItemState(title: "Launch at login (move the app to /Applications)",
+                                       checked: false, enabled: false)
+            default:
+                state = LoginItemState(title: "Launch at login", checked: false, enabled: true)
+            }
+            DispatchQueue.main.async { self?.loginItemState = state }
+        }
     }
 
     @objc private func toggleLogin() {
         guard #available(macOS 13, *) else { return }
+        let wasEnabled = loginItemState.checked
 
-        // Nothing to toggle: macOS is waiting on the user, not on us.
-        if loginStatus == .requiresApproval {
-            openLoginItemsSettings()
-            return
-        }
-
-        do {
-            if loginStatus == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // Nothing to toggle: macOS is waiting on the user, not on us.
+            if SMAppService.mainApp.status == .requiresApproval {
+                DispatchQueue.main.async { self?.openLoginItemsSettings() }
+                return
             }
-        } catch {
-            alert("Couldn't change the login item", "\(error.localizedDescription)")
-            return
-        }
 
-        // Registering often lands in .requiresApproval rather than .enabled — say so,
-        // instead of leaving an unchecked box and no explanation.
-        if loginStatus == .requiresApproval {
-            let response = alert("One more step",
-                                 "macOS needs you to approve BitPerfect DX under Login Items.",
-                                 extraButton: "Open System Settings")
-            if response == .alertSecondButtonReturn { openLoginItemsSettings() }
+            var failure: String?
+            do {
+                if wasEnabled { try SMAppService.mainApp.unregister() }
+                else { try SMAppService.mainApp.register() }
+            } catch {
+                failure = error.localizedDescription
+            }
+            let needsApproval = SMAppService.mainApp.status == .requiresApproval
+
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.refreshLoginItemState()
+                if let failure {
+                    self.alert("Couldn’t change the login item", failure)
+                } else if needsApproval {
+                    // Registering often lands here rather than .enabled — say so, instead
+                    // of leaving an unchecked box and no explanation.
+                    let response = self.alert("One more step",
+                                              "macOS needs you to approve BitPerfect DX under Login Items.",
+                                              extraButton: "Open System Settings")
+                    if response == .alertSecondButtonReturn { self.openLoginItemsSettings() }
+                }
+            }
         }
     }
 
     private func openLoginItemsSettings() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
-        if let url { NSWorkspace.shared.open(url) }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc private func showActivity() {
@@ -247,22 +268,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showChecklist() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
-            let lines = self.checklistLines()
+            let report = self.checklist()
             DispatchQueue.main.async {
-                let response = self.alert("Bit-perfect check", lines.joined(separator: "\n"),
-                                          extraButton: "Fix what I can")
+                // Offering "Fix what I can" when nothing is fixable is how this button
+                // came to look like a crash: both repairs need Music, and with Music
+                // closed they threw and left the user staring at an unchanged dialog.
+                let response = self.alert("Bit-perfect check",
+                                          report.lines.joined(separator: "\n"),
+                                          extraButton: report.fixable.isEmpty ? nil : "Fix what I can")
                 guard response == .alertSecondButtonReturn else { return }
-                DispatchQueue.global(qos: .userInitiated).async {
-                    try? MusicBridge.setVolumeToUnity()
-                    try? MusicBridge.disableEQ()
-                    Engine.shared.reapply()
-                }
+                self.applyFixes(report.fixable)
             }
         }
     }
 
-    private func checklistLines() -> [String] {
+    private func applyFixes(_ fixable: [String]) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var done: [String] = []
+            var failed: [String] = []
+            for fix in fixable {
+                do {
+                    switch fix {
+                    case "volume": try MusicBridge.setVolumeToUnity(); done.append("Music volume set to 100%")
+                    case "eq":     try MusicBridge.disableEQ();        done.append("Equalizer turned off")
+                    default:       break
+                    }
+                } catch {
+                    failed.append("\(error)")
+                }
+            }
+            Engine.shared.reapply()
+            DispatchQueue.main.async {
+                let body = (done + failed).isEmpty ? "Nothing changed." : (done + failed).joined(separator: "\n")
+                self?.alert(failed.isEmpty ? "Fixed" : "Partly fixed", body)
+            }
+        }
+    }
+
+    private func checklist() -> (lines: [String], fixable: [String]) {
         var lines: [String] = []
+        var fixable: [String] = []
         let status = Engine.shared.status
 
         if let device = settings.resolveTargetDevice() {
@@ -278,6 +323,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let snapshot = try? MusicBridge.snapshot() {
             lines.append("\(snapshot.hygiene.volume == 100 ? "✓" : "✗") Music’s own volume: \(snapshot.hygiene.volume)%")
             lines.append("\(snapshot.hygiene.eqEnabled ? "✗" : "✓") Equalizer: \(snapshot.hygiene.eqEnabled ? "on" : "off")")
+            if snapshot.hygiene.volume != 100 { fixable.append("volume") }
+            if snapshot.hygiene.eqEnabled { fixable.append("eq") }
         } else {
             lines.append("✗ Can’t reach Music (open it, and allow Automation)")
         }
@@ -288,7 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lines.append("  • Sound Check: off")
         lines.append("  • Crossfade Songs: off")
         lines.append("  • Audio Quality → Lossless (or Hi-Res Lossless)")
-        return lines
+        return (lines, fixable)
     }
 
     @discardableResult
