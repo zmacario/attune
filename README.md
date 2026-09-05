@@ -132,6 +132,33 @@ cada 15 segundos (com 5 de folga, para o sistema agrupar o despertar com outros)
 sempre que você abre o menu. Com o Music fechado não custa nada: o ciclo para antes de
 mandar qualquer Apple Event.
 
+## Abrir ao iniciar sessão
+
+O item **Launch at login** no menu registra o app via `SMAppService` (macOS 13+). O que
+torna isso menos trivial do que parece é que `SMAppService` tem **quatro** estados, e não
+dois:
+
+| Estado | O que o menu mostra |
+|---|---|
+| `.enabled` | "Launch at login", marcado |
+| `.requiresApproval` | "Launch at login (approve in System Settings…)" — clicar abre o painel |
+| `.notRegistered` | normal; clicar registra |
+| `.notFound` | desabilitado, com a dica de mover o app para `/Applications` |
+
+O caso que engana é o `.requiresApproval`: o macOS aceita o registro mas exige que você
+confirme em **Ajustes do Sistema → Geral → Itens de Início**. Tratar isso como
+"desligado" — que era o comportamento original — produzia uma caixa desmarcada que, ao
+ser clicada, chamava `register()` de novo e não mudava nada visível. Nesse estado o
+clique agora abre o painel em vez de repetir um registro que já deu certo.
+
+Se você registrar o app pelos Ajustes do Sistema em vez de pelo menu, o menu enxerga e
+mostra marcado — é o mesmo registro.
+
+Uma armadilha para quem for mexer no código: **`SMAppService.status` bloqueia
+indefinidamente** quando lido fora de um app propriamente lançado, e foi visto travando
+assim durante o desenvolvimento. Por isso ele é lido em segundo plano e o menu desenha um
+valor em cache, em vez de consultá-lo enquanto monta os itens.
+
 ## Como ele descobre a taxa
 
 Em ordem de preferência:
@@ -228,6 +255,29 @@ Copie `Resources/en.lproj` para `Resources/<código>.lproj`, traduza os dois arq
 `build.sh` roda `tools/check-localization.py`, que falha se alguma chave usada no código
 faltar em algum idioma — sem isso, uma tradução esquecida apareceria no menu como a
 própria chave (`menu.quit`), sem erro nenhum.
+
+## O ícone
+
+Desenhado por código, em [tools/make-icon.swift](tools/make-icon.swift), e empacotado com
+`iconutil`. Não há catálogo de assets porque o `/usr/bin/actool` é um stub que precisa do
+Xcode completo — o `iconutil`, que faz o mesmo para ícones, vem com as Command Line Tools.
+
+Para mudar o desenho, edite o Swift e recompile: o `build.sh` regenera o `.icns` sozinho
+quando o fonte está mais novo que ele. A regeneração é condicional porque compila um
+segundo binário, e o ícone muda muito menos que o app.
+
+```bash
+./tools/make-icon.sh    # se quiser regenerar sem recompilar o app
+```
+
+O glifo é o mesmo símbolo SF que a barra de menu usa, de propósito: o ícone do Dock e o da
+barra passam a se reconhecer como o mesmo app.
+
+**O ícone da barra tem duas versões**, e a diferença entre elas não é óbvia. A normal é uma
+*template image*, que o macOS pinta sozinho para acompanhar o modo claro ou escuro. A de
+aviso **não** é template, com o laranja embutido na imagem — porque a barra de menu desenha
+template images em monocromático e ignora `contentTintColor`. Tentar tingir a versão normal
+não produz efeito nenhum.
 
 ## Diagnóstico
 
