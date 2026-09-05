@@ -80,7 +80,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add("Open Audio MIDI Setup", #selector(openAudioMIDI), on: nil)
 
         menu.addItem(.separator())
-        add("Launch at login", #selector(toggleLogin), on: loginEnabled)
+        let loginItem = add(loginItemTitle, #selector(toggleLogin), on: loginItemChecked)
+        loginItem.isEnabled = loginItemEnabled
         add("Quit", #selector(quit), on: nil, key: "q")
     }
 
@@ -170,20 +171,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Login item
 
-    private var loginEnabled: Bool {
-        if #available(macOS 13, *) { return SMAppService.mainApp.status == .enabled }
-        return false
+    /// SMAppService has four states, and treating anything that is not `.enabled` as
+    /// "off" is what made this menu item look broken: macOS answers `.requiresApproval`
+    /// when the user has to finish the job in System Settings, and calling register()
+    /// again from there changes nothing.
+    @available(macOS 13, *)
+    private var loginStatus: SMAppService.Status { SMAppService.mainApp.status }
+
+    private var loginItemTitle: String {
+        guard #available(macOS 13, *) else { return "Launch at login (needs macOS 13)" }
+        switch loginStatus {
+        case .enabled:          return "Launch at login"
+        case .requiresApproval: return "Launch at login (approve in System Settings…)"
+        case .notFound:         return "Launch at login (move the app to /Applications)"
+        default:                return "Launch at login"
+        }
+    }
+
+    private var loginItemChecked: Bool {
+        guard #available(macOS 13, *) else { return false }
+        return loginStatus == .enabled
+    }
+
+    private var loginItemEnabled: Bool {
+        guard #available(macOS 13, *) else { return false }
+        return loginStatus != .notFound
     }
 
     @objc private func toggleLogin() {
         guard #available(macOS 13, *) else { return }
-        do {
-            if loginEnabled { try SMAppService.mainApp.unregister() }
-            else { try SMAppService.mainApp.register() }
-        } catch {
-            alert("Couldn’t change the login item",
-                  "\(error.localizedDescription)\n\nYou can add BitPerfect DX by hand in System Settings → General → Login Items.")
+
+        // Nothing to toggle: macOS is waiting on the user, not on us.
+        if loginStatus == .requiresApproval {
+            openLoginItemsSettings()
+            return
         }
+
+        do {
+            if loginStatus == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            alert("Couldn't change the login item", "\(error.localizedDescription)")
+            return
+        }
+
+        // Registering often lands in .requiresApproval rather than .enabled — say so,
+        // instead of leaving an unchecked box and no explanation.
+        if loginStatus == .requiresApproval {
+            let response = alert("One more step",
+                                 "macOS needs you to approve BitPerfect DX under Login Items.",
+                                 extraButton: "Open System Settings")
+            if response == .alertSecondButtonReturn { openLoginItemsSettings() }
+        }
+    }
+
+    private func openLoginItemsSettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+        if let url { NSWorkspace.shared.open(url) }
     }
 
     @objc private func showActivity() {
