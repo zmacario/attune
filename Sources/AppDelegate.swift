@@ -38,7 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ? " " + rateLabel(status.deviceRate).replacingOccurrences(of: " kHz", with: "k")
             : ""
         button.contentTintColor = status.problem == nil ? nil : .systemOrange
-        if menu.numberOfItems > 0, statusItem.button?.window?.isVisible == true { rebuild() }
+        // Deliberately does not rebuild the menu. menuNeedsUpdate already rebuilds it on
+        // every open, and doing it here tore out the row under the pointer mid-click —
+        // the replacement row starts unhighlighted, so the highlight vanished until the
+        // mouse moved again. A menu should not reshuffle while someone is using it.
     }
 
     // MARK: Menu
@@ -77,12 +80,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        add(localized("menu.route"), #selector(toggleRoute), on: settings.routeToTarget)
-        add(localized("menu.matchRate"), #selector(toggleMatch), on: settings.matchSampleRate)
-        add(localized("menu.deepestFormat"), #selector(toggleDepth), on: settings.maximizeBitDepth)
-        add(localized("menu.restartOnChange"), #selector(toggleSeamless), on: settings.seamlessSwitch)
-        add(localized("menu.restoreOnStop"), #selector(toggleRestore), on: settings.restoreOnStop)
-        add(localized("menu.assumeAtmos"), #selector(toggleAtmos), on: settings.assumeAtmos)
+        // View-backed so that clicking one does not dismiss the menu — there are six of
+        // these, and reopening the menu between each was tedious. See ToggleMenuItemView.
+        let toggles: [(title: String, isOn: () -> Bool, toggle: () -> Void)] = [
+            (localized("menu.route"),
+             { [unowned self] in settings.routeToTarget }, { [unowned self] in toggleRoute() }),
+            (localized("menu.matchRate"),
+             { [unowned self] in settings.matchSampleRate }, { [unowned self] in toggleMatch() }),
+            (localized("menu.deepestFormat"),
+             { [unowned self] in settings.maximizeBitDepth }, { [unowned self] in toggleDepth() }),
+            (localized("menu.restartOnChange"),
+             { [unowned self] in settings.seamlessSwitch }, { [unowned self] in toggleSeamless() }),
+            (localized("menu.restoreOnStop"),
+             { [unowned self] in settings.restoreOnStop }, { [unowned self] in toggleRestore() }),
+            (localized("menu.assumeAtmos"),
+             { [unowned self] in settings.assumeAtmos }, { [unowned self] in toggleAtmos() }),
+        ]
+        let toggleWidth = ToggleMenuItemView.width(for: toggles.map(\.title))
+        for entry in toggles {
+            let item = NSMenuItem()
+            item.view = ToggleMenuItemView(title: entry.title, width: toggleWidth,
+                                           isOn: entry.isOn, action: entry.toggle)
+            menu.addItem(item)
+        }
 
         menu.addItem(.separator())
         menu.addItem(deviceMenu())
