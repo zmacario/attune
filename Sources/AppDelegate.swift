@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Held so the header can be refreshed without rebuilding the menu around it.
-    private var headerItems: [NSMenuItem] = []
+    private var headerViews: [ScrollingLabelMenuItemView] = []
     private weak var checklistItem: NSMenuItem?
 
     /// The menu bar icon, in its normal and warning forms.
@@ -93,11 +93,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ? localized("menu.checklist")
             : "⚠️ " + localized("menu.checklist")
 
-        guard headerItems.count == 3 else { return }
+        guard headerViews.count == 3 else { return }
 
-        let device = status.deviceRate > 0
-            ? "\(status.targetName) · \(rateLabel(status.deviceRate))"
-            : status.targetName
+        let device: String
+        if !status.targetConnected {
+            device = status.targetName          // already reads as a sentence of its own
+        } else if status.deviceRate > 0 {
+            device = "\(status.targetName) · \(rateLabel(status.deviceRate))"
+        } else {
+            device = status.targetName
+        }
 
         var track = localized("menu.nothingPlaying")
         if let title = status.trackTitle {
@@ -107,15 +112,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
-        headerItems[0].attributedTitle = attributed(device, bold: true)
+        headerViews[0].attributedText = attributed(device, bold: true)
         // A warning takes the wire-format row rather than adding one of its own: the row
         // count has to stay fixed, and of the three the wire format is the least urgent.
-        headerItems[1].attributedTitle = attributed(localized("menu.wire", status.wireFormat ?? "—"))
-        headerItems[2].attributedTitle = attributed(track)
+        headerViews[1].attributedText = attributed(localized("menu.wire", status.wireFormat ?? "—"))
+        headerViews[2].attributedText = attributed(track)
     }
 
+    private static var headlineFont: NSFont { .menuBarFont(ofSize: 0) }
+    private static var detailFont: NSFont { .menuFont(ofSize: NSFont.smallSystemFontSize) }
+
     private func attributed(_ string: String, bold: Bool = false, colour: NSColor? = nil) -> NSAttributedString {
-        let font = bold ? NSFont.menuBarFont(ofSize: 0) : NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
+        let font = bold ? Self.headlineFont : Self.detailFont
         return NSAttributedString(string: string, attributes: [
             .font: font,
             .foregroundColor: colour ?? (bold ? NSColor.labelColor : NSColor.secondaryLabelColor),
@@ -125,15 +133,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func rebuild() {
         menu.removeAllItems()
         let status = Engine.shared.status
-
-        // Three header rows, always. The count has to be fixed: the menu can only be
-        // updated in place while it is open if nothing above the toggles appears or
-        // disappears, and anything that shifts rows vertically moves them out from under
-        // the pointer mid-click.
-        headerItems = (0..<3).map { _ in disabled("", small: true) }
-        headerItems.forEach(menu.addItem)
-
-        menu.addItem(.separator())
 
         // View-backed so that clicking one does not dismiss the menu — there are six of
         // these, and reopening the menu between each was tedious. See ToggleMenuItemView.
@@ -152,6 +151,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
              { [unowned self] in settings.assumeAtmos }, { [unowned self] in toggleAtmos() }),
         ]
         let toggleWidth = ToggleMenuItemView.width(for: toggles.map(\.title))
+
+        // Three header rows, always. The count has to be fixed: the menu can only be
+        // updated in place while it is open if nothing above the toggles appears or
+        // disappears, and anything that shifts rows vertically moves them out from under
+        // the pointer mid-click. They are view-backed and share the toggles' width so a
+        // long track title cannot stretch the menu — it scrolls inside the row instead.
+        headerViews = [
+            ScrollingLabelMenuItemView(width: toggleWidth, font: Self.headlineFont),
+            ScrollingLabelMenuItemView(width: toggleWidth, font: Self.detailFont),
+            ScrollingLabelMenuItemView(width: toggleWidth, font: Self.detailFont),
+        ]
+        for view in headerViews {
+            let item = NSMenuItem()
+            item.view = view
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+
         for entry in toggles {
             let item = NSMenuItem()
             item.view = ToggleMenuItemView(title: entry.title, width: toggleWidth,
@@ -172,24 +190,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let loginItem = add(loginItemState.title, #selector(toggleLogin), on: loginItemState.checked)
         loginItem.isEnabled = loginItemState.enabled
+        add(localized("menu.about"), #selector(showAbout), on: nil)
         add(localized("menu.quit"), #selector(quit), on: nil, key: "q")
 
         // Last: it styles the checklist item too, which does not exist until the menu is
         // fully built.
         updateStatusDisplay(status)
-    }
-
-    private func disabled(_ title: String, bold: Bool = false, small: Bool = false) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        let font = bold ? NSFont.menuBarFont(ofSize: 0)
-                        : small ? NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
-                                : NSFont.menuFont(ofSize: 0)
-        item.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [.font: font,
-                         .foregroundColor: small ? NSColor.secondaryLabelColor : NSColor.labelColor])
-        return item
     }
 
     @discardableResult
@@ -204,15 +210,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func deviceMenu() -> NSMenuItem {
         let parent = NSMenuItem(title: localized("menu.outputDevice"), action: nil, keyEquivalent: "")
         let sub = NSMenu()
-        let current = settings.resolveTargetDevice()
-        for device in AudioDevice.allOutputs() {
-            let item = NSMenuItem(title: "\(device.name)  (\(device.transport))",
-                                  action: #selector(pickDevice(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = device.uid
-            item.state = device.uid == current?.uid ? .on : .off
-            sub.addItem(item)
+
+        // The tick marks the device actually in play, not the saved preference — the two
+        // differ whenever the preferred one is unplugged and another has taken over, and
+        // showing the preference there would point at a device doing nothing.
+        let active = settings.resolveTargetDevice()
+        let outputs = AudioDevice.allOutputs()
+        let dacs = outputs.filter(\.isWiredDAC)
+        let others = outputs.filter { !$0.isWiredDAC }
+
+        func addSection(_ title: String, _ devices: [AudioDevice]) {
+            guard !devices.isEmpty else { return }
+            if sub.numberOfItems > 0 { sub.addItem(.separator()) }
+            let header = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            sub.addItem(header)
+            for device in devices {
+                let item = NSMenuItem(title: "    \(device.name)  (\(device.transport))",
+                                      action: #selector(pickDevice(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = device
+                item.state = device.uid == active?.uid ? .on : .off
+                sub.addItem(item)
+            }
         }
+
+        addSection(localized("menu.dacs"), dacs)
+        addSection(localized("menu.otherOutputs"), others)
         parent.submenu = sub
         return parent
     }
@@ -248,7 +272,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func reapply()        { Engine.shared.reapply() }
 
     @objc private func pickDevice(_ sender: NSMenuItem) {
-        settings.targetDeviceUID = sender.representedObject as? String
+        guard let device = sender.representedObject as? AudioDevice else { return }
+        settings.setTargetDevice(device)
         Engine.shared.reapply()
     }
 
@@ -259,6 +284,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openAudioMIDI() {
         NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Audio MIDI Setup.app"))
+    }
+
+    /// The system panel rather than a window of our own: it already pulls the icon, name
+    /// and version straight from the bundle, and looks like every other About box.
+    @objc private func showAbout() {
+        // An accessory app is never frontmost on its own, so the panel would open behind
+        // whatever the user is looking at.
+        NSApp.activate(ignoringOtherApps: true)
+        let credits = NSAttributedString(
+            string: localized("about.credits"),
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
@@ -402,6 +442,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var fixable: [String] = []
         let status = Engine.shared.status
 
+        if settings.resolveTargetDevice() == nil {
+            lines.append(localized("menu.noDAC"))
+        }
         if let device = settings.resolveTargetDevice() {
             lines.append(localized("check.output", device.name, rateLabel(device.nominalSampleRate)))
             if let wire = device.currentPhysicalFormat { lines.append(localized("check.wireFormat", wire.describedBriefly)) }

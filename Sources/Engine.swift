@@ -9,6 +9,9 @@ struct EngineStatus: Equatable {
     var trackTitle: String?
     var detected: TrackFormat?
     var problem: String?
+    /// False when the chosen device is configured but not plugged in. The name is still
+    /// shown, so the menu can say which device is missing.
+    var targetConnected: Bool = true
     /// Kept apart from `problem` because the two have different lifetimes: a device or
     /// script failure belongs to one playback attempt, while Music's volume and EQ are
     /// standing conditions that can change with no notification at all.
@@ -24,6 +27,7 @@ final class Engine {
     private let settings = Settings.shared
     private var pendingWork: DispatchWorkItem?
     private var poll: DispatchSourceTimer?
+    private var deviceListener: AudioObjectPropertyListenerBlock?
 
     /// Music's volume and EQ change with no notification of any kind, so the only way to
     /// keep the menu bar honest is to look. The generous leeway lets the system coalesce
@@ -53,9 +57,28 @@ final class Engine {
         }
         refreshStatus()
         startPolling()
+        startDeviceListener()
         warmUpMediaAccess()
         // If Music is already playing when we launch, act on it right away.
         if MusicBridge.isRunning { schedule(after: 0.3) }
+    }
+
+    /// Unplugging the DAC that is playing makes macOS move the audio somewhere else
+    /// immediately — usually the built-in speakers. Without this the app would not notice
+    /// until the next track change, and the music would carry on out of the wrong output.
+    /// The poll cannot cover it either: that refreshes what the menu shows, it does not
+    /// re-route.
+    private func startDeviceListener() {
+        var address = CA.addr(kAudioHardwarePropertyDevices)
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            Log.write("device list changed")
+            // A moment for the HAL to settle before asking it what is there.
+            self?.refreshStatus()
+            self?.schedule(after: 0.3)
+        }
+        deviceListener = block
+        let status = AudioObjectAddPropertyListenerBlock(CA.system, &address, work, block)
+        if status != noErr { Log.write("device listener FAILED: \(status)") }
     }
 
     private func startPolling() {
@@ -132,10 +155,14 @@ final class Engine {
         }
 
         guard var device = Log.timed("resolveTargetDevice", { settings.resolveTargetDevice() }) else {
-            next.problem = localized("engine.noDevice")
+            // Do nothing rather than retarget: changing some other device's sample rate
+            // because the DAC was unplugged is worse than leaving everything alone.
+            markTargetUnavailable(in: &next)
+            Log.write("no usable target: \(next.problem ?? "-")")
             publish(next)
             return
         }
+        next.targetConnected = true
         next.targetName = device.name
 
         // 1. Route the stream to the DAC.
@@ -218,6 +245,17 @@ final class Engine {
         if !ok { status.problem = localized("engine.setRateFailed", rateLabel(rate)) }
     }
 
+    /// Nothing to act on. Not a fault: listening through the built-in speakers or a
+    /// Bluetooth headset is a normal thing to be doing, and a DAC plugged in later is
+    /// picked up on its own.
+    private func markTargetUnavailable(in status: inout EngineStatus) {
+        status.targetConnected = false
+        status.deviceRate = 0
+        status.wireFormat = nil
+        status.targetName = localized("menu.noDAC")
+        status.problem = nil
+    }
+
     private func handleStopped() {
         guard Date() >= suppressUntil else { return }
         work.async { [weak self] in
@@ -252,9 +290,12 @@ final class Engine {
             guard let self else { return }
             var next = self.status
             if let device = self.settings.resolveTargetDevice() {
+                next.targetConnected = true
                 next.targetName = device.name
                 next.deviceRate = device.nominalSampleRate
                 next.wireFormat = device.currentPhysicalFormat?.describedBriefly
+            } else {
+                self.markTargetUnavailable(in: &next)
             }
             // Costs one Apple Event per menu open, off the main thread; the header fills
             // in a moment after the menu appears.

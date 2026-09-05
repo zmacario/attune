@@ -24,7 +24,6 @@
 "check.volumeNone" = "• Volume isn't exposed to macOS — macOS isn't scaling the samples";
 "check.wireFormat" = "• Wire format: %@";
 "engine.eqProblem" = "EQ is on";
-"engine.noDevice" = "No output device found.";
 "engine.rateUnsupported" = "%@ can't do %@.";
 "engine.setRateFailed" = "Failed to set %@";
 "engine.switchFailed" = "Could not switch the output device.";
@@ -69,3 +68,8 @@
 "source.metadata" = "Music";
 "menu.nothingPlaying" = "Nothing playing";
 "menu.trackFormat" = "%@ (%@)";
+"menu.about" = "About BitPerfect DX";
+"about.credits" = "Keeps your DAC on the native sample rate of whatever Music is playing, so macOS has nothing to resample.";
+"menu.noDAC" = "No DAC connected";
+"menu.dacs" = "DACs";
+"menu.otherOutputs" = "Other outputs";
