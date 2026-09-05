@@ -63,12 +63,31 @@ no certificado, que não muda:
 ./tools/create-signing-identity.sh
 ```
 
-O `build.sh` encontra o certificado sozinho e passa a usá-lo. Se o script falhar no passo
-de confiança, dá para fazer pela interface: **Acesso às Chaves → Assistente de Certificado
-→ Criar um certificado**, nome `BitPerfect DX Local`, tipo *Assinatura de código*,
-autoassinado. O nome precisa bater.
+O `build.sh` encontra o certificado pelo nome `BitPerfect DX Local` e passa a usá-lo
+sozinho; sem ele, avisa no terminal que assinou ad-hoc. Você também pode apontar outro com
+`CODESIGN_IDENTITY="nome" ./build.sh`.
 
-Você também pode apontar outro certificado com `CODESIGN_IDENTITY="nome" ./build.sh`.
+O requirement passa a ser:
+
+```
+designated => identifier "com.macario.bitperfectdx"
+              and certificate leaf = H"b87be2ba…"
+```
+
+Sem cdhash. Verificado na prática: recompilar com o binário mudado (cdhash diferente) e
+relançar não gerou **nenhum** prompt novo de `kTCCServiceMediaLibrary`, contra 7 nos
+rebuilds anteriores com assinatura ad-hoc.
+
+**Se o script falhar no `security import`** com "MAC verification failed": o `openssl` do
+macOS é LibreSSL, e ele e o `security` discordam de como uma senha vazia é codificada no
+MAC do arquivo PKCS#12. Por isso o script gera uma senha aleatória descartável em vez de
+usar senha vazia — ela só carrega a chave privada do openssl até o chaveiro e some com o
+diretório temporário.
+
+**Se falhar no `add-trusted-cert`**, que altera as configurações de confiança e pede sua
+aprovação, dá para fazer pela interface: **Acesso às Chaves → Assistente de Certificado →
+Criar um certificado**, nome `BitPerfect DX Local`, tipo *Assinatura de código*,
+autoassinado. O nome precisa bater exatamente.
 
 ## O que ele faz a cada faixa
 
@@ -127,10 +146,32 @@ equalizador ligado marcam o *Check bit-perfect setup…* com ⚠️ e tingem o �
 laranja. O detalhe fica no relatório, a um clique — mais informativo que uma linha de
 resumo, e o cabeçalho continua sendo só fato.
 
-Volume e EQ do Music mudam sem notificar ninguém, então o app relê essas duas coisas a
-cada 15 segundos (com 5 de folga, para o sistema agrupar o despertar com outros) e
-sempre que você abre o menu. Com o Music fechado não custa nada: o ciclo para antes de
-mandar qualquer Apple Event.
+Volume e EQ do Music mudam sem notificar ninguém — veja **Verificação periódica** abaixo.
+
+## Verificação periódica
+
+O app reage a `com.apple.Music.playerInfo`, que o Music publica ao trocar de faixa, pausar
+e retomar. Mas **volume interno e equalizador não publicam nada** — mudar qualquer um dos
+dois é invisível para qualquer app de fora. Sem verificar de tempos em tempos, o aviso só
+apareceria na coincidência de o ajuste já estar errado no instante em que uma faixa
+começasse, que é justamente quando você não precisa dele.
+
+Então há um timer relendo essas duas coisas:
+
+| | |
+|---|---|
+| Intervalo | 15 segundos |
+| Folga | 5 segundos, para o macOS agrupar o despertar com outros que já faria |
+| Com o Music fechado | não manda Apple Event nenhum; a checagem de processo é local |
+| Custo medido | 0,0% de CPU, e nada acrescentado ao log |
+
+Duas decisões evitam que isso vire desperdício. O `EngineStatus` é comparável e o
+`publish()` descarta atualizações idênticas — senão o menu seria reescrito a cada 15
+segundos sem nada ter mudado. E as duas imagens da barra são construídas uma vez, não a
+cada avaliação.
+
+Para mexer no intervalo, `pollInterval` e `pollLeeway` estão em
+[Engine.swift:31](Sources/Engine.swift#L31).
 
 ## Abrir ao iniciar sessão
 
