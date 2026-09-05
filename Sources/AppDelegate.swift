@@ -37,11 +37,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         button.title = status.deviceRate > 0
             ? " " + rateLabel(status.deviceRate).replacingOccurrences(of: " kHz", with: "k")
             : ""
-        button.contentTintColor = status.problem == nil ? nil : .systemOrange
+        button.contentTintColor = warning(in: status) == nil ? nil : .systemOrange
         // Updates the header in place rather than rebuilding: a rebuild tore out the row
         // under the pointer mid-click, and the replacement row starts unhighlighted, so
         // the highlight vanished until the mouse moved. Text changes move nothing.
-        updateHeader(status)
+        updateStatusDisplay(status)
     }
 
     // MARK: Menu
@@ -54,9 +54,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Held so the header can be refreshed without rebuilding the menu around it.
     private var headerItems: [NSMenuItem] = []
+    private weak var checklistItem: NSMenuItem?
 
-    private func updateHeader(_ status: EngineStatus) {
-        guard headerItems.count == 4 else { return }
+    /// A hard failure outranks a standing condition like a lowered volume.
+    private func warning(in status: EngineStatus) -> String? {
+        status.problem ?? status.hygieneProblem
+    }
+
+    private func updateStatusDisplay(_ status: EngineStatus) {
+        // The warning rides on the item that fixes it rather than on a status line: the
+        // detail is one click away in the report, which says more than a summary line,
+        // and the header stays purely factual.
+        //
+        // An emoji rather than item.image: an NSMenuItem image makes AppKit reserve an
+        // image column and indent the normal items, while the view-backed toggles draw
+        // themselves and ignore it — the menu would come out misaligned down the middle.
+        // Being coloured already, it also sidesteps how a tinted title fares against the
+        // blue highlight, so the title keeps its native appearance throughout.
+        checklistItem?.title = warning(in: status) == nil
+            ? localized("menu.checklist")
+            : "⚠️ " + localized("menu.checklist")
+
+        guard headerItems.count == 3 else { return }
 
         let device = status.deviceRate > 0
             ? "\(status.targetName) · \(rateLabel(status.deviceRate))"
@@ -70,13 +89,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
-        // One line carries whichever of these matters most right now.
-        let note = status.problem.map { "⚠︎ " + $0 } ?? status.lastAction ?? "—"
-
         headerItems[0].attributedTitle = attributed(device, bold: true)
+        // A warning takes the wire-format row rather than adding one of its own: the row
+        // count has to stay fixed, and of the three the wire format is the least urgent.
         headerItems[1].attributedTitle = attributed(localized("menu.wire", status.wireFormat ?? "—"))
         headerItems[2].attributedTitle = attributed(track)
-        headerItems[3].attributedTitle = attributed(note, colour: status.problem == nil ? nil : .systemOrange)
     }
 
     private func attributed(_ string: String, bold: Bool = false, colour: NSColor? = nil) -> NSAttributedString {
@@ -91,13 +108,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
         let status = Engine.shared.status
 
-        // Four header rows, always. The count has to be fixed: the menu can only be
+        // Three header rows, always. The count has to be fixed: the menu can only be
         // updated in place while it is open if nothing above the toggles appears or
         // disappears, and anything that shifts rows vertically moves them out from under
         // the pointer mid-click.
-        headerItems = (0..<4).map { _ in disabled("", small: true) }
+        headerItems = (0..<3).map { _ in disabled("", small: true) }
         headerItems.forEach(menu.addItem)
-        updateHeader(status)
 
         menu.addItem(.separator())
 
@@ -131,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
         add(localized("menu.reapply"), #selector(reapply), on: nil)
-        add(localized("menu.checklist"), #selector(showChecklist), on: nil)
+        checklistItem = add(localized("menu.checklist"), #selector(showChecklist), on: nil)
         add(localized("menu.activity"), #selector(showActivity), on: nil)
         add(localized("menu.audioMidi"), #selector(openAudioMIDI), on: nil)
 
@@ -139,6 +155,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let loginItem = add(loginItemState.title, #selector(toggleLogin), on: loginItemState.checked)
         loginItem.isEnabled = loginItemState.enabled
         add(localized("menu.quit"), #selector(quit), on: nil, key: "q")
+
+        // Last: it styles the checklist item too, which does not exist until the menu is
+        // fully built.
+        updateStatusDisplay(status)
     }
 
     private func disabled(_ title: String, bold: Bool = false, small: Bool = false) -> NSMenuItem {

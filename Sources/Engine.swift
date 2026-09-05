@@ -8,8 +8,11 @@ struct EngineStatus {
     var wireFormat: String?
     var trackTitle: String?
     var detected: TrackFormat?
-    var lastAction: String?
     var problem: String?
+    /// Kept apart from `problem` because the two have different lifetimes: a device or
+    /// script failure belongs to one playback attempt, while Music's volume and EQ are
+    /// standing conditions that can change with no notification at all.
+    var hygieneProblem: String?
     var playing: Bool = false
 }
 
@@ -121,10 +124,11 @@ final class Engine {
         if settings.routeToTarget, Log.timed("defaultOutput", { AudioDevice.defaultOutput?.id }) != device.id {
             previousDeviceUID = AudioDevice.defaultOutput?.uid
             if device.makeDefaultOutput() {
-                next.lastAction = localized("engine.switched", device.name)
+                Log.write("default output -> \(device.name)")
                 // The HAL hands out a fresh device object after a default change.
                 device = settings.resolveTargetDevice() ?? device
             } else {
+                Log.write("default output -> \(device.name): FAILED")
                 next.problem = localized("engine.switchFailed")
             }
         }
@@ -144,12 +148,7 @@ final class Engine {
         next.wireFormat = fresh.currentPhysicalFormat?.describedBriefly
 
         // 3. Flag the two things that would quietly undo all of the above.
-        if !snapshot.hygiene.isClean {
-            var issues: [String] = []
-            if snapshot.hygiene.volume != 100 { issues.append(localized("engine.volumeProblem", snapshot.hygiene.volume)) }
-            if snapshot.hygiene.eqEnabled { issues.append(localized("engine.eqProblem")) }
-            next.problem = issues.joined(separator: ", ")
-        }
+        next.hygieneProblem = Engine.hygieneProblem(snapshot.hygiene)
 
         publish(next)
     }
@@ -198,10 +197,7 @@ final class Engine {
             suppressUntil = Date().addingTimeInterval(1.0)
         }
 
-        status.lastAction = ok
-            ? localized("engine.setRate", device.name, rateLabel(rate), format.source.label)
-            : localized("engine.setRateFailed", rateLabel(rate))
-        if !ok { status.problem = status.lastAction }
+        if !ok { status.problem = localized("engine.setRateFailed", rateLabel(rate)) }
     }
 
     private func handleStopped() {
@@ -213,7 +209,7 @@ final class Engine {
             if self.settings.restoreOnStop, let uid = self.previousDeviceUID,
                let previous = AudioDevice.allOutputs().first(where: { $0.uid == uid }) {
                 previous.makeDefaultOutput()
-                next.lastAction = localized("engine.restored", previous.name)
+                Log.write("default output restored -> \(previous.name)")
                 self.previousDeviceUID = nil
             }
             self.publish(next)
@@ -221,6 +217,17 @@ final class Engine {
     }
 
     // MARK: Status
+
+    /// Music's volume and EQ change without any notification, so they have to be read
+    /// again rather than remembered from the last track change — otherwise the warning
+    /// only ever appears if the setting was already wrong when a track happened to start.
+    private static func hygieneProblem(_ hygiene: MusicHygiene) -> String? {
+        guard !hygiene.isClean else { return nil }
+        var issues: [String] = []
+        if hygiene.volume != 100 { issues.append(localized("engine.volumeProblem", hygiene.volume)) }
+        if hygiene.eqEnabled { issues.append(localized("engine.eqProblem")) }
+        return issues.joined(separator: ", ")
+    }
 
     func refreshStatus() {
         work.async { [weak self] in
@@ -231,6 +238,11 @@ final class Engine {
                 next.deviceRate = device.nominalSampleRate
                 next.wireFormat = device.currentPhysicalFormat?.describedBriefly
             }
+            // Costs one Apple Event per menu open, off the main thread; the header fills
+            // in a moment after the menu appears.
+            next.hygieneProblem = MusicBridge.isRunning
+                ? (try? MusicBridge.snapshot()).map { Engine.hygieneProblem($0.hygiene) } ?? nil
+                : nil
             self.publish(next)
         }
     }

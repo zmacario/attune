@@ -26,11 +26,8 @@
 "engine.eqProblem" = "Equalizador ligado";
 "engine.noDevice" = "Nenhum dispositivo de saída encontrado.";
 "engine.rateUnsupported" = "%@ não aceita %@.";
-"engine.restored" = "Saída restaurada para %@";
-"engine.setRate" = "%@ ajustado para %@ (%@)";
 "engine.setRateFailed" = "Falha ao ajustar %@";
 "engine.switchFailed" = "Não foi possível trocar o dispositivo de saída.";
-"engine.switched" = "Saída trocada para %@";
 "engine.volumeProblem" = "Volume do Music em %ld%%";
 "fix.done" = "Corrigido";
 "fix.eq" = "Equalizador desligado";

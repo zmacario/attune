@@ -26,11 +26,8 @@
 "engine.eqProblem" = "EQ is on";
 "engine.noDevice" = "No output device found.";
 "engine.rateUnsupported" = "%@ can't do %@.";
-"engine.restored" = "Restored output to %@";
-"engine.setRate" = "Set %@ to %@ (%@)";
 "engine.setRateFailed" = "Failed to set %@";
 "engine.switchFailed" = "Could not switch the output device.";
-"engine.switched" = "Switched output to %@";
 "engine.volumeProblem" = "Music volume at %ld%%";
 "fix.done" = "Fixed";
 "fix.eq" = "Equalizer turned off";
