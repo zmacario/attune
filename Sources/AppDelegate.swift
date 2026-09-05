@@ -8,8 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "waveform",
-                                           accessibilityDescription: "BitPerfect DX")
+        statusItem.button?.image = Self.normalIcon
         statusItem.button?.imagePosition = .imageLeading
         menu.delegate = self
         statusItem.menu = menu
@@ -37,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         button.title = status.deviceRate > 0
             ? " " + rateLabel(status.deviceRate).replacingOccurrences(of: " kHz", with: "k")
             : ""
-        button.contentTintColor = warning(in: status) == nil ? nil : .systemOrange
+        button.image = warning(in: status) == nil ? Self.normalIcon : Self.warningIcon
         // Updates the header in place rather than rebuilding: a rebuild tore out the row
         // under the pointer mid-click, and the replacement row starts unhighlighted, so
         // the highlight vanished until the mouse moved. Text changes move nothing.
@@ -55,6 +54,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Held so the header can be refreshed without rebuilding the menu around it.
     private var headerItems: [NSMenuItem] = []
     private weak var checklistItem: NSMenuItem?
+
+    /// The menu bar icon, in its normal and warning forms.
+    ///
+    /// contentTintColor does not work here: SF Symbols arrive as template images, and the
+    /// menu bar draws those monochrome to follow the system appearance, overriding any
+    /// tint. Colour has to be baked into a non-template image instead.
+    private static let normalIcon = statusImage(warning: false)
+    private static let warningIcon = statusImage(warning: true)
+
+    private static func statusImage(warning: Bool) -> NSImage? {
+        let description = "BitPerfect DX"
+        guard warning else {
+            return NSImage(systemSymbolName: "waveform", accessibilityDescription: description)
+        }
+        let image = NSImage(systemSymbolName: "waveform", accessibilityDescription: description)?
+            .withSymbolConfiguration(.init(paletteColors: [.systemOrange]))
+        image?.isTemplate = false
+        return image
+    }
 
     /// A hard failure outranks a standing condition like a lowered volume.
     private func warning(in status: EngineStatus) -> String? {

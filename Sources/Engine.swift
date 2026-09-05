@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import CoreAudio
 
-struct EngineStatus {
+struct EngineStatus: Equatable {
     var targetName: String = "—"
     var deviceRate: Double = 0
     var wireFormat: String?
@@ -23,6 +23,13 @@ final class Engine {
     private let work = DispatchQueue(label: "bitperfectdx.engine")
     private let settings = Settings.shared
     private var pendingWork: DispatchWorkItem?
+    private var poll: DispatchSourceTimer?
+
+    /// Music's volume and EQ change with no notification of any kind, so the only way to
+    /// keep the menu bar honest is to look. The generous leeway lets the system coalesce
+    /// this with other wakeups, and the Apple Event is skipped when Music is closed.
+    private static let pollInterval: DispatchTimeInterval = .seconds(15)
+    private static let pollLeeway: DispatchTimeInterval = .seconds(5)
     private var suppressUntil = Date.distantPast   // ignore the notifications our own pause/play cause
     private var previousDeviceUID: String?
 
@@ -45,9 +52,20 @@ final class Engine {
                                suspensionBehavior: .deliverImmediately)
         }
         refreshStatus()
+        startPolling()
         warmUpMediaAccess()
         // If Music is already playing when we launch, act on it right away.
         if MusicBridge.isRunning { schedule(after: 0.3) }
+    }
+
+    private func startPolling() {
+        let timer = DispatchSource.makeTimerSource(queue: work)
+        timer.schedule(deadline: .now() + Self.pollInterval,
+                       repeating: Self.pollInterval,
+                       leeway: Self.pollLeeway)
+        timer.setEventHandler { [weak self] in self?.refreshStatus() }
+        timer.resume()
+        poll = timer
     }
 
     /// The first read of the Apple Music media folder by a given build costs a few seconds
@@ -248,6 +266,8 @@ final class Engine {
     }
 
     private func publish(_ new: EngineStatus) {
+        // Polling would otherwise repaint the menu every fifteen seconds for nothing.
+        guard new != status else { return }
         status = new
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }

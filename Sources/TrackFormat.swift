@@ -2,7 +2,7 @@ import Foundation
 import AudioToolbox
 
 /// The native format of the track Music is playing, and where we learned it.
-struct TrackFormat {
+struct TrackFormat: Equatable {
     enum Source: String {
         case file      = "file"        // a plain audio file, read off disk — exact
         case download  = "download"    // an Apple Music .movpkg — exact, read from the HLS variant
