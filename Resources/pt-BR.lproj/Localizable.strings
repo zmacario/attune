@@ -73,3 +73,4 @@
 "menu.noDAC" = "Nenhum DAC conectado";
 "menu.dacs" = "DACs";
 "menu.otherOutputs" = "Outras saídas";
+"source.player" = "player";

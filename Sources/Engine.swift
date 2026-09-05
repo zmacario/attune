@@ -37,6 +37,27 @@ final class Engine {
     private var suppressUntil = Date.distantPast   // ignore the notifications our own pause/play cause
     private var previousDeviceUID: String?
 
+    /// Identity and start time of the track being handled, so log lines can be attributed
+    /// to it. The player's message names no track — only opaque pointers — so "emitted
+    /// since this track started" is the only correlation available.
+    private var trackKey: String?
+    private var trackStartedAt = Date()
+    private var missNotedForTrack = false
+
+    /// How long to give the player to report a streamed track's format before giving up
+    /// and guessing, and how often to ask in the meantime.
+    /// Measured: the player's report lagged the track change by 0.4 s to 3.3 s, so three
+    /// seconds cut it off mid-stride. The gap between attempts comes from PlayerLog,
+    /// which knows what a read costs by the method that works here.
+    private static let playerWindow: TimeInterval = 6
+
+    /// How far *before* the track change to look. Measured: the player reports a format
+    /// about three seconds before Music posts its notification, because it reports while
+    /// preparing the item. A window that starts at the track change looks in the wrong
+    /// direction and finds nothing, every time.
+    private static let playerLookback: TimeInterval = 10
+
+
     private(set) var status = EngineStatus()
     var onStatusChange: ((EngineStatus) -> Void)?
 
@@ -58,6 +79,9 @@ final class Engine {
         refreshStatus()
         startPolling()
         startDeviceListener()
+        // Settle the log question once, so a streamed track never waits for a permission
+        // the app does not have.
+        work.async { Log.timed("player probe") { PlayerLog.probe() } }
         warmUpMediaAccess()
         // If Music is already playing when we launch, act on it right away.
         if MusicBridge.isRunning { schedule(after: 0.3) }
@@ -150,6 +174,8 @@ final class Engine {
                   + "vol=\(snapshot.hygiene.volume) eq=\(snapshot.hygiene.eqEnabled)")
 
         guard snapshot.state == "playing" else { publish(next); return }
+        noteTrack(snapshot.track)
+        if !PlayerLog.isSettled { Log.timed("player probe") { PlayerLog.probe() } }
         next.trackTitle = snapshot.track.map {
             $0.artist.isEmpty ? $0.name : "\($0.name) — \($0.artist)"
         }
@@ -180,9 +206,7 @@ final class Engine {
 
         // 2. Put the DAC on the track's own rate.
         if settings.matchSampleRate, let track = snapshot.track,
-           let format = Log.timed("resolveFormat", { TrackFormat.resolve(track: track,
-                                                                         fallbackRate: settings.fallbackRate,
-                                                                         assumeAtmos: settings.assumeAtmos) }) {
+           let format = Log.timed("resolveFormat", { resolveFormat(for: track) }) {
             Log.write("resolved: \(format.summary) via \(format.source.rawValue); device at \(rateLabel(device.nominalSampleRate))")
             next.detected = format
             applyFormat(format, to: device, trackPosition: track.position, into: &next)
@@ -196,6 +220,53 @@ final class Engine {
         next.hygieneProblem = Engine.hygieneProblem(snapshot.hygiene)
 
         publish(next)
+    }
+
+    /// Notices when the track changed, and where its start was. `position` is what puts
+    /// the start in the right place when the app launches into a track already playing.
+    private func noteTrack(_ track: MusicTrack?) {
+        let key = track.map { "\($0.name)|\($0.artist)" } ?? "-"
+        guard key != trackKey else { return }
+        trackKey = key
+        missNotedForTrack = false
+        let position = min(track?.position ?? 0, 120)   // bound the log window we ask for
+        trackStartedAt = Date().addingTimeInterval(-position)
+    }
+
+    /// A streamed track has no file to read and Music reports its rate as zero, so the
+    /// only honest source is the player's own log. Waiting a moment for it beats applying
+    /// a guess and correcting later: a correction is a second dropout, in the middle of
+    /// the music rather than at its start.
+    private func resolveFormat(for track: MusicTrack) -> TrackFormat? {
+        let streaming = track.path == nil
+
+        if streaming, PlayerLog.isAvailable {
+            let searchFrom = trackStartedAt.addingTimeInterval(-Self.playerLookback)
+            if let reported = PlayerLog.latestFormat(since: searchFrom) {
+                PlayerLog.noteHit()
+                Log.write("player reports \(reported.rendition) \(rateLabel(reported.sampleRate))"
+                          + " \(reported.bitDepth.map { "\($0)-bit" } ?? "")"
+                          + " \(reported.channels.map { "\($0)ch" } ?? "")")
+                return TrackFormat(sampleRate: reported.sampleRate,
+                                   bitDepth: reported.bitDepth,
+                                   source: .player)
+            }
+            if Date().timeIntervalSince(trackStartedAt) < Self.playerWindow {
+                // Nothing yet. Hold off rather than set a rate we would have to undo.
+                schedule(after: PlayerLog.suggestedRetryInterval)
+                return nil
+            }
+            if !missNotedForTrack {
+                // Once per track, not once per attempt: the window expiring is re-checked
+                // on every later event for the same track.
+                missNotedForTrack = true
+                PlayerLog.noteMiss()
+            }
+        }
+
+        return TrackFormat.resolve(track: track,
+                                   fallbackRate: settings.fallbackRate,
+                                   assumeAtmos: settings.assumeAtmos)
     }
 
     private func applyFormat(_ format: TrackFormat, to device: AudioDevice,
