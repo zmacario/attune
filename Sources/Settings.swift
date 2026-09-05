@@ -61,6 +61,11 @@ final class Settings {
         set { defaults.set(newValue, forKey: "fallbackRate") }
     }
 
+    /// Hidden, off by default: measures whether playback keeps running while the device
+    /// reconfigures, at the cost of two Apple Events inside the very gap being measured.
+    /// Enable with `defaults write com.macario.bitperfectdx measureContinuity -bool true`.
+    var measureContinuity: Bool { bool("measureContinuity", default: false) }
+
     /// Remembered alongside the UID so an absent device can still be named in the menu —
     /// a device that is not connected cannot be looked up.
     var targetDeviceName: String? {

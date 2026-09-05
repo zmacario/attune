@@ -213,7 +213,7 @@ final class Engine {
            let format = Log.timed("resolveFormat", { resolveFormat(for: track) }) {
             Log.write("resolved: \(format.summary) via \(format.source.rawValue); device at \(rateLabel(device.nominalSampleRate))")
             next.detected = format
-            applyFormat(format, to: device, trackPosition: track.position, into: &next)
+            applyFormat(format, to: device, into: &next)
         }
 
         let fresh = settings.resolveTargetDevice() ?? device
@@ -276,7 +276,7 @@ final class Engine {
     }
 
     private func applyFormat(_ format: TrackFormat, to device: AudioDevice,
-                             trackPosition: Double, into status: inout EngineStatus) {
+                             into status: inout EngineStatus) {
         let supported = device.supportedSampleRates
         Log.write("applyFormat: want \(rateLabel(format.sampleRate)), device supports \(supported.map { rateLabel($0) }.joined(separator: "/"))")
         guard let rate = supported.first(where: { abs($0 - format.sampleRate) < 1 }) else {
@@ -288,16 +288,27 @@ final class Engine {
             return
         }
 
-        // Changing the rate under a live stream clicks. Pausing first, then restarting the
-        // track from the top, gives a clean transition — but only rewind if we're still
-        // near the start, so a manual seek isn't thrown away.
+        // Changing the rate under a live stream costs about 800 ms of reconfiguration
+        // during which the audio is simply gone, and the discontinuity can click. Pausing
+        // first turns that into a deliberate silence with nothing lost.
+        //
+        // It resumes where it paused rather than restarting the track. Rewinding made
+        // sense when the change happened at the very first instant, but the rate is now
+        // settled around 0.85 s in, and replaying that second is more noticeable than the
+        // gap itself.
         let shouldPause = Settings.shared.seamlessSwitch
-        let rewind = shouldPause && trackPosition < 8
 
         if shouldPause {
             suppressUntil = Date().addingTimeInterval(6)
             try? Log.timed("pause") { try MusicBridge.pause() }
         }
+
+        // Both readings sit inside the same interval, so the Apple Event each one costs
+        // lands in the wall clock and in the position alike and cannot skew the comparison.
+        // Only meaningful with the pause off: paused, the position obviously stands still.
+        let measuring = settings.measureContinuity
+        let startedAt = Date()
+        let positionBefore = measuring ? try? MusicBridge.position() : nil
 
         // The physical format carries the sample rate, so setting it alone reconfigures the
         // device once rather than twice — the DAC relocks its clock on each change, and that
@@ -311,10 +322,17 @@ final class Engine {
         if !ok || abs(device.nominalSampleRate - rate) >= 1 {
             ok = Log.timed("setSampleRate") { device.setSampleRate(rate) }
         }
+        if measuring, let positionBefore, let positionAfter = try? MusicBridge.position() {
+            let wall = Date().timeIntervalSince(startedAt)
+            let played = positionAfter - positionBefore
+            Log.write(String(format: "continuity: wall %.2fs, playback advanced %.2fs — %@",
+                             wall, played,
+                             played > wall / 2 ? "audio was lost" : "Music stalled, nothing lost"))
+        }
+
         Log.write("rate -> \(rateLabel(rate)): \(ok ? "ok" : "FAILED")")
 
         if shouldPause {
-            if rewind { try? MusicBridge.seek(to: 0) }
             try? Log.timed("play") { try MusicBridge.play() }
             suppressUntil = Date().addingTimeInterval(1.0)
         }
