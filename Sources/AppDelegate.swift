@@ -19,6 +19,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Engine.shared.start()
     }
 
+    /// Reopening a menu bar app — from Launchpad, Finder, or the Dock — normally does
+    /// nothing at all, because there is no window to raise. That silence is impossible to
+    /// tell apart from a crash, so open the menu instead: it is the app's only way to say
+    /// "I'm here".
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Asynchronously: clicking the status item from inside the reopen callback can
+        // land before AppKit has finished handling the launch event.
+        DispatchQueue.main.async { [weak self] in
+            self?.statusItem.button?.performClick(nil)
+        }
+        return true
+    }
+
     private func render(_ status: EngineStatus) {
         guard let button = statusItem.button else { return }
         button.title = status.deviceRate > 0
@@ -45,12 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ? "\(status.targetName) · \(rateLabel(status.deviceRate))"
             : status.targetName
         menu.addItem(disabled(headline, bold: true))
-        if let wire = status.wireFormat { menu.addItem(disabled("Wire: \(wire)", small: true)) }
+        if let wire = status.wireFormat { menu.addItem(disabled(localized("menu.wire", wire), small: true)) }
         if let track = status.trackTitle {
             menu.addItem(disabled((status.playing ? "▶ " : "⏸ ") + track, small: true))
         }
         if let detected = status.detected {
-            menu.addItem(disabled("Track: \(detected.summary) (from \(detected.source.rawValue))", small: true))
+            menu.addItem(disabled(localized("menu.track", detected.summary, detected.source.label), small: true))
         }
         if let action = status.lastAction { menu.addItem(disabled(action, small: true)) }
         if let problem = status.problem {
@@ -64,27 +77,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        add("Route Music to this device", #selector(toggleRoute), on: settings.routeToTarget)
-        add("Match the track's sample rate", #selector(toggleMatch), on: settings.matchSampleRate)
-        add("Use the deepest bit format", #selector(toggleDepth), on: settings.maximizeBitDepth)
-        add("Restart track on rate change", #selector(toggleSeamless), on: settings.seamlessSwitch)
-        add("Restore previous output when Music stops", #selector(toggleRestore), on: settings.restoreOnStop)
-        add("Dolby Atmos is set to Always On", #selector(toggleAtmos), on: settings.assumeAtmos)
+        add(localized("menu.route"), #selector(toggleRoute), on: settings.routeToTarget)
+        add(localized("menu.matchRate"), #selector(toggleMatch), on: settings.matchSampleRate)
+        add(localized("menu.deepestFormat"), #selector(toggleDepth), on: settings.maximizeBitDepth)
+        add(localized("menu.restartOnChange"), #selector(toggleSeamless), on: settings.seamlessSwitch)
+        add(localized("menu.restoreOnStop"), #selector(toggleRestore), on: settings.restoreOnStop)
+        add(localized("menu.assumeAtmos"), #selector(toggleAtmos), on: settings.assumeAtmos)
 
         menu.addItem(.separator())
         menu.addItem(deviceMenu())
         menu.addItem(fallbackMenu())
 
         menu.addItem(.separator())
-        add("Re-apply now", #selector(reapply), on: nil)
-        add("Check bit-perfect setup…", #selector(showChecklist), on: nil)
-        add("Show recent activity…", #selector(showActivity), on: nil)
-        add("Open Audio MIDI Setup", #selector(openAudioMIDI), on: nil)
+        add(localized("menu.reapply"), #selector(reapply), on: nil)
+        add(localized("menu.checklist"), #selector(showChecklist), on: nil)
+        add(localized("menu.activity"), #selector(showActivity), on: nil)
+        add(localized("menu.audioMidi"), #selector(openAudioMIDI), on: nil)
 
         menu.addItem(.separator())
         let loginItem = add(loginItemState.title, #selector(toggleLogin), on: loginItemState.checked)
         loginItem.isEnabled = loginItemState.enabled
-        add("Quit", #selector(quit), on: nil, key: "q")
+        add(localized("menu.quit"), #selector(quit), on: nil, key: "q")
     }
 
     private func disabled(_ title: String, bold: Bool = false, small: Bool = false) -> NSMenuItem {
@@ -110,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func deviceMenu() -> NSMenuItem {
-        let parent = NSMenuItem(title: "Output device", action: nil, keyEquivalent: "")
+        let parent = NSMenuItem(title: localized("menu.outputDevice"), action: nil, keyEquivalent: "")
         let sub = NSMenu()
         let current = settings.resolveTargetDevice()
         for device in AudioDevice.allOutputs() {
@@ -126,13 +139,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func fallbackMenu() -> NSMenuItem {
-        let parent = NSMenuItem(title: "When the rate is unknown", action: nil, keyEquivalent: "")
+        let parent = NSMenuItem(title: localized("menu.unknownRate"), action: nil, keyEquivalent: "")
         let sub = NSMenu()
         let options: [(String, Double)] = [
-            ("Leave the device alone", 0),
-            ("Assume 44.1 kHz", 44100),
-            ("Assume 48 kHz", 48000),
-            ("Assume 96 kHz", 96000),
+            (localized("menu.leaveAlone"), 0),
+            (localized("menu.assumeRate", rateLabel(44100)), 44100),
+            (localized("menu.assumeRate", rateLabel(48000)), 48000),
+            (localized("menu.assumeRate", rateLabel(96000)), 96000),
         ]
         for (title, rate) in options {
             let item = NSMenuItem(title: title, action: #selector(pickFallback(_:)), keyEquivalent: "")
@@ -178,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// would put that risk on the main thread, so the menu draws a cached value that is
     /// refreshed in the background.
     private struct LoginItemState {
-        var title = "Launch at login"
+        var title = localized("login.title")
         var checked = false
         var enabled = true
     }
@@ -189,7 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// job in System Settings, and calling register() again from there changes nothing.
     private func refreshLoginItemState() {
         guard #available(macOS 13, *) else {
-            loginItemState = LoginItemState(title: "Launch at login (needs macOS 13)",
+            loginItemState = LoginItemState(title: localized("login.needsVentura"),
                                             checked: false, enabled: false)
             return
         }
@@ -197,15 +210,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let state: LoginItemState
             switch SMAppService.mainApp.status {
             case .enabled:
-                state = LoginItemState(title: "Launch at login", checked: true, enabled: true)
+                state = LoginItemState(title: localized("login.title"), checked: true, enabled: true)
             case .requiresApproval:
-                state = LoginItemState(title: "Launch at login (approve in System Settings…)",
+                state = LoginItemState(title: localized("login.needsApproval"),
                                        checked: false, enabled: true)
             case .notFound:
-                state = LoginItemState(title: "Launch at login (move the app to /Applications)",
+                state = LoginItemState(title: localized("login.notFound"),
                                        checked: false, enabled: false)
             default:
-                state = LoginItemState(title: "Launch at login", checked: false, enabled: true)
+                state = LoginItemState(title: localized("login.title"), checked: false, enabled: true)
             }
             DispatchQueue.main.async { self?.loginItemState = state }
         }
@@ -235,13 +248,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard let self else { return }
                 self.refreshLoginItemState()
                 if let failure {
-                    self.alert("Couldn’t change the login item", failure)
+                    self.alert(localized("login.failed"), failure)
                 } else if needsApproval {
                     // Registering often lands here rather than .enabled — say so, instead
                     // of leaving an unchecked box and no explanation.
-                    let response = self.alert("One more step",
-                                              "macOS needs you to approve BitPerfect DX under Login Items.",
-                                              extraButton: "Open System Settings")
+                    let response = self.alert(localized("login.oneMoreStep"),
+                                              localized("login.approveBody"),
+                                              extraButton: localized("login.openSettings"))
                     if response == .alertSecondButtonReturn { self.openLoginItemsSettings() }
                 }
             }
@@ -256,8 +269,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func showActivity() {
         let entries = Log.recent
-        let body = entries.isEmpty ? "Nothing logged yet." : entries.suffix(30).joined(separator: "\n")
-        if alert("Recent activity", body, extraButton: "Copy all") == .alertSecondButtonReturn {
+        let body = entries.isEmpty ? localized("activity.empty") : entries.suffix(30).joined(separator: "\n")
+        if alert(localized("activity.title"), body, extraButton: localized("activity.copy")) == .alertSecondButtonReturn {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(entries.joined(separator: "\n"), forType: .string)
         }
@@ -273,9 +286,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // Offering "Fix what I can" when nothing is fixable is how this button
                 // came to look like a crash: both repairs need Music, and with Music
                 // closed they threw and left the user staring at an unchanged dialog.
-                let response = self.alert("Bit-perfect check",
+                let response = self.alert(localized("check.title"),
                                           report.lines.joined(separator: "\n"),
-                                          extraButton: report.fixable.isEmpty ? nil : "Fix what I can")
+                                          extraButton: report.fixable.isEmpty ? nil : localized("check.fix"))
                 guard response == .alertSecondButtonReturn else { return }
                 self.applyFixes(report.fixable)
             }
@@ -289,8 +302,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             for fix in fixable {
                 do {
                     switch fix {
-                    case "volume": try MusicBridge.setVolumeToUnity(); done.append("Music volume set to 100%")
-                    case "eq":     try MusicBridge.disableEQ();        done.append("Equalizer turned off")
+                    case "volume": try MusicBridge.setVolumeToUnity(); done.append(localized("fix.volume"))
+                    case "eq":     try MusicBridge.disableEQ();        done.append(localized("fix.eq"))
                     default:       break
                     }
                 } catch {
@@ -299,8 +312,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             Engine.shared.reapply()
             DispatchQueue.main.async {
-                let body = (done + failed).isEmpty ? "Nothing changed." : (done + failed).joined(separator: "\n")
-                self?.alert(failed.isEmpty ? "Fixed" : "Partly fixed", body)
+                let body = (done + failed).isEmpty ? localized("fix.nothing") : (done + failed).joined(separator: "\n")
+                self?.alert(failed.isEmpty ? localized("fix.done") : localized("fix.partial"), body)
             }
         }
     }
@@ -311,30 +324,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let status = Engine.shared.status
 
         if let device = settings.resolveTargetDevice() {
-            lines.append("• Output: \(device.name) at \(rateLabel(device.nominalSampleRate))")
-            if let wire = device.currentPhysicalFormat { lines.append("• Wire format: \(wire.describedBriefly)") }
+            lines.append(localized("check.output", device.name, rateLabel(device.nominalSampleRate)))
+            if let wire = device.currentPhysicalFormat { lines.append(localized("check.wireFormat", wire.describedBriefly)) }
             if let detected = status.detected {
                 let matched = abs(device.nominalSampleRate - detected.sampleRate) < 1
-                lines.append("\(matched ? "✓" : "✗") Device rate \(matched ? "matches" : "does not match") the track (\(detected.summary))")
+                lines.append(localized(matched ? "check.rateMatches" : "check.rateDiffers", detected.summary))
             }
-            lines.append("• Volume is \(device.hasHardwareVolumeControl ? "handled by the DAC" : "not exposed to macOS") — either way macOS isn’t scaling the samples")
+            lines.append(localized(device.hasHardwareVolumeControl ? "check.volumeHardware" : "check.volumeNone"))
         }
 
         if let snapshot = try? MusicBridge.snapshot() {
-            lines.append("\(snapshot.hygiene.volume == 100 ? "✓" : "✗") Music’s own volume: \(snapshot.hygiene.volume)%")
-            lines.append("\(snapshot.hygiene.eqEnabled ? "✗" : "✓") Equalizer: \(snapshot.hygiene.eqEnabled ? "on" : "off")")
+            lines.append(localized("check.musicVolume",
+                                   snapshot.hygiene.volume == 100 ? "✓" : "✗",
+                                   snapshot.hygiene.volume))
+            lines.append(localized("check.eq",
+                                   snapshot.hygiene.eqEnabled ? "✗" : "✓",
+                                   localized(snapshot.hygiene.eqEnabled ? "check.on" : "check.off")))
             if snapshot.hygiene.volume != 100 { fixable.append("volume") }
             if snapshot.hygiene.eqEnabled { fixable.append("eq") }
         } else {
-            lines.append("✗ Can’t reach Music (open it, and allow Automation)")
+            lines.append(localized("check.noMusic"))
         }
 
         lines.append("")
-        lines.append("Set these by hand in Music → Settings → Playback:")
-        lines.append("  • Sound Enhancer: off")
-        lines.append("  • Sound Check: off")
-        lines.append("  • Crossfade Songs: off")
-        lines.append("  • Audio Quality → Lossless (or Hi-Res Lossless)")
+        lines.append(localized("check.manualHeader"))
+        lines.append(localized("check.soundEnhancer"))
+        lines.append(localized("check.soundCheck"))
+        lines.append(localized("check.crossfade"))
+        lines.append(localized("check.audioQuality"))
         return (lines, fixable)
     }
 
@@ -344,7 +361,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = body
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: localized("alert.ok"))
         if let extraButton { alert.addButton(withTitle: extraButton) }
         return alert.runModal()
     }

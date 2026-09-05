@@ -111,7 +111,7 @@ final class Engine {
         }
 
         guard var device = Log.timed("resolveTargetDevice", { settings.resolveTargetDevice() }) else {
-            next.problem = "No output device found."
+            next.problem = localized("engine.noDevice")
             publish(next)
             return
         }
@@ -121,11 +121,11 @@ final class Engine {
         if settings.routeToTarget, Log.timed("defaultOutput", { AudioDevice.defaultOutput?.id }) != device.id {
             previousDeviceUID = AudioDevice.defaultOutput?.uid
             if device.makeDefaultOutput() {
-                next.lastAction = "Switched output to \(device.name)"
+                next.lastAction = localized("engine.switched", device.name)
                 // The HAL hands out a fresh device object after a default change.
                 device = settings.resolveTargetDevice() ?? device
             } else {
-                next.problem = "Could not switch the output device."
+                next.problem = localized("engine.switchFailed")
             }
         }
 
@@ -146,8 +146,8 @@ final class Engine {
         // 3. Flag the two things that would quietly undo all of the above.
         if !snapshot.hygiene.isClean {
             var issues: [String] = []
-            if snapshot.hygiene.volume != 100 { issues.append("Music volume at \(snapshot.hygiene.volume)%") }
-            if snapshot.hygiene.eqEnabled { issues.append("EQ is on") }
+            if snapshot.hygiene.volume != 100 { issues.append(localized("engine.volumeProblem", snapshot.hygiene.volume)) }
+            if snapshot.hygiene.eqEnabled { issues.append(localized("engine.eqProblem")) }
             next.problem = issues.joined(separator: ", ")
         }
 
@@ -159,7 +159,7 @@ final class Engine {
         let supported = device.supportedSampleRates
         Log.write("applyFormat: want \(rateLabel(format.sampleRate)), device supports \(supported.map { rateLabel($0) }.joined(separator: "/"))")
         guard let rate = supported.first(where: { abs($0 - format.sampleRate) < 1 }) else {
-            status.problem = "\(device.name) can't do \(rateLabel(format.sampleRate))."
+            status.problem = localized("engine.rateUnsupported", device.name, rateLabel(format.sampleRate))
             return
         }
         guard abs(device.nominalSampleRate - rate) >= 1 else {
@@ -199,8 +199,8 @@ final class Engine {
         }
 
         status.lastAction = ok
-            ? "Set \(device.name) to \(rateLabel(rate)) (\(format.source.rawValue))"
-            : "Failed to set \(rateLabel(rate))"
+            ? localized("engine.setRate", device.name, rateLabel(rate), format.source.label)
+            : localized("engine.setRateFailed", rateLabel(rate))
         if !ok { status.problem = status.lastAction }
     }
 
@@ -213,7 +213,7 @@ final class Engine {
             if self.settings.restoreOnStop, let uid = self.previousDeviceUID,
                let previous = AudioDevice.allOutputs().first(where: { $0.uid == uid }) {
                 previous.makeDefaultOutput()
-                next.lastAction = "Restored output to \(previous.name)"
+                next.lastAction = localized("engine.restored", previous.name)
                 self.previousDeviceUID = nil
             }
             self.publish(next)

@@ -30,7 +30,7 @@ enum MusicBridge {
 
         var description: String {
             switch self {
-            case .notRunning: return "Music isn’t running."
+            case .notRunning: return localized("music.notRunning")
             case .scriptFailed(let m): return m
             }
         }
@@ -47,7 +47,7 @@ enum MusicBridge {
     private static func script(for source: String) throws -> NSAppleScript {
         if let cached = compiled[source] { return cached }
         guard let script = NSAppleScript(source: source) else {
-            throw BridgeError.scriptFailed("Could not create the helper script.")
+            throw BridgeError.scriptFailed(localized("music.scriptBroken"))
         }
         var error: NSDictionary?
         guard script.compileAndReturnError(&error) else {
@@ -63,8 +63,7 @@ enum MusicBridge {
         Log.write("AppleScript error \(code): \(message)")
         // -1743 is the TCC denial; worth naming because the fix is not obvious.
         if code == -1743 {
-            return .scriptFailed(
-                "Not allowed to control Music. Grant it in System Settings → Privacy & Security → Automation.")
+            return .scriptFailed(localized("music.notAllowed"))
         }
         return .scriptFailed(message)
     }
@@ -92,10 +91,10 @@ enum MusicBridge {
     /// file path, plus the two settings that would silently break bit-perfect.
     static func snapshot() throws -> (state: String, track: MusicTrack?, hygiene: MusicHygiene) {
         guard let source = snapshotScript else {
-            throw BridgeError.scriptFailed("Snapshot.applescript is missing from the app bundle.")
+            throw BridgeError.scriptFailed(localized("music.scriptMissing"))
         }
         let fields = try run(source).components(separatedBy: "\n")
-        guard fields.count >= 8 else { throw BridgeError.scriptFailed("Unexpected reply from Music.") }
+        guard fields.count >= 8 else { throw BridgeError.scriptFailed(localized("music.badReply")) }
 
         let hygiene = MusicHygiene(volume: Int(fields[6]) ?? 100,
                                    eqEnabled: fields[7] == "true")

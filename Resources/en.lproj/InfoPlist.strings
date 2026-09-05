@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "BitPerfect DX asks Music which track is playing so it can set your DAC to that track's sample rate.";
+"NSAppleMusicUsageDescription" = "BitPerfect DX reads the sample rate of your downloaded Apple Music tracks so it can set your DAC to match them.";

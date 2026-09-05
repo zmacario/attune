@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "O BitPerfect DX pergunta ao Music qual faixa está tocando para ajustar o DAC à taxa dessa faixa.";
+"NSAppleMusicUsageDescription" = "O BitPerfect DX lê a taxa de amostragem das faixas baixadas do Apple Music para ajustar o DAC a elas.";

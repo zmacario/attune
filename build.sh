@@ -19,8 +19,15 @@ swiftc -O -swift-version 5 \
 # named `st`, say) only show up here — at runtime they are just a silent failure.
 osacompile -o /dev/null Resources/Snapshot.applescript
 
+# A missing translation is not a crash — NSLocalizedString hands back the key — so the
+# app would quietly show "menu.quit" in its menu. Catch it here instead.
+python3 tools/check-localization.py
+
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/Snapshot.applescript "$APP/Contents/Resources/"
+for lproj in Resources/*.lproj; do
+    cp -R "$lproj" "$APP/Contents/Resources/"
+done
 
 # How the app is signed decides whether it keeps its permissions across rebuilds.
 #

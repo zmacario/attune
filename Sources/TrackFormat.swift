@@ -8,6 +8,16 @@ struct TrackFormat {
         case download  = "download"    // an Apple Music .movpkg — exact, read from the HLS variant
         case metadata  = "Music"       // Music's own `sample rate` — usually right
         case fallback  = "fallback"    // nothing known, using the configured default
+
+        /// `rawValue` stays English, because the log is a diagnostic; this is the menu's.
+        var label: String {
+            switch self {
+            case .file:     return localized("source.file")
+            case .download: return localized("source.download")
+            case .metadata: return localized("source.metadata")
+            case .fallback: return localized("source.fallback")
+            }
+        }
     }
 
     var sampleRate: Double

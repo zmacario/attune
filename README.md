@@ -144,6 +144,39 @@ Deixe o volume interno do Music em 100% — ele atenua em software, antes do áu
 app. O controle de volume do macOS, nesse DAC, vai para o atenuador do próprio DX3, então
 esse pode usar à vontade.
 
+## Idiomas
+
+A interface segue o idioma do sistema. Hoje há inglês e português (`Resources/en.lproj`,
+`Resources/pt-BR.lproj`); o macOS escolhe sozinho e cai no inglês se não houver
+correspondência.
+
+Só a interface é traduzida. As mensagens de log seguem em inglês de propósito — elas
+existem para diagnóstico, e um log traduzido é mais difícil de pesquisar e de colar num
+relato de problema.
+
+Para ver o app noutro idioma sem mexer no sistema inteiro:
+
+```bash
+defaults write com.macario.bitperfectdx AppleLanguages -array pt-BR
+```
+
+Feche e reabra o app. Para voltar ao idioma do sistema:
+
+```bash
+defaults delete com.macario.bitperfectdx AppleLanguages
+```
+
+O mesmo existe na interface, em **Ajustes do Sistema → Geral → Idioma e Região →
+Aplicativos**.
+
+### Acrescentar um idioma
+
+Copie `Resources/en.lproj` para `Resources/<código>.lproj`, traduza os dois arquivos
+`.strings`, e acrescente o código em `CFBundleLocalizations` no `Info.plist`. O
+`build.sh` roda `tools/check-localization.py`, que falha se alguma chave usada no código
+faltar em algum idioma — sem isso, uma tradução esquecida apareceria no menu como a
+própria chave (`menu.quit`), sem erro nenhum.
+
 ## Diagnóstico
 
 O menu tem *Show recent activity…*, que mostra as últimas decisões do app. Pela linha de
