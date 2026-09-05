@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Held so the header can be refreshed without rebuilding the menu around it.
-    private var headerItems: [NSMenuItem] = []
+    private var headerViews: [ScrollingLabelMenuItemView] = []
     private weak var checklistItem: NSMenuItem?
 
     /// The menu bar icon, in its normal and warning forms.
@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ? localized("menu.checklist")
             : "⚠️ " + localized("menu.checklist")
 
-        guard headerItems.count == 3 else { return }
+        guard headerViews.count == 3 else { return }
 
         let device = status.deviceRate > 0
             ? "\(status.targetName) · \(rateLabel(status.deviceRate))"
@@ -107,15 +107,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
-        headerItems[0].attributedTitle = attributed(device, bold: true)
+        headerViews[0].attributedText = attributed(device, bold: true)
         // A warning takes the wire-format row rather than adding one of its own: the row
         // count has to stay fixed, and of the three the wire format is the least urgent.
-        headerItems[1].attributedTitle = attributed(localized("menu.wire", status.wireFormat ?? "—"))
-        headerItems[2].attributedTitle = attributed(track)
+        headerViews[1].attributedText = attributed(localized("menu.wire", status.wireFormat ?? "—"))
+        headerViews[2].attributedText = attributed(track)
     }
 
+    private static var headlineFont: NSFont { .menuBarFont(ofSize: 0) }
+    private static var detailFont: NSFont { .menuFont(ofSize: NSFont.smallSystemFontSize) }
+
     private func attributed(_ string: String, bold: Bool = false, colour: NSColor? = nil) -> NSAttributedString {
-        let font = bold ? NSFont.menuBarFont(ofSize: 0) : NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
+        let font = bold ? Self.headlineFont : Self.detailFont
         return NSAttributedString(string: string, attributes: [
             .font: font,
             .foregroundColor: colour ?? (bold ? NSColor.labelColor : NSColor.secondaryLabelColor),
@@ -125,15 +128,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func rebuild() {
         menu.removeAllItems()
         let status = Engine.shared.status
-
-        // Three header rows, always. The count has to be fixed: the menu can only be
-        // updated in place while it is open if nothing above the toggles appears or
-        // disappears, and anything that shifts rows vertically moves them out from under
-        // the pointer mid-click.
-        headerItems = (0..<3).map { _ in disabled("", small: true) }
-        headerItems.forEach(menu.addItem)
-
-        menu.addItem(.separator())
 
         // View-backed so that clicking one does not dismiss the menu — there are six of
         // these, and reopening the menu between each was tedious. See ToggleMenuItemView.
@@ -152,6 +146,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
              { [unowned self] in settings.assumeAtmos }, { [unowned self] in toggleAtmos() }),
         ]
         let toggleWidth = ToggleMenuItemView.width(for: toggles.map(\.title))
+
+        // Three header rows, always. The count has to be fixed: the menu can only be
+        // updated in place while it is open if nothing above the toggles appears or
+        // disappears, and anything that shifts rows vertically moves them out from under
+        // the pointer mid-click. They are view-backed and share the toggles' width so a
+        // long track title cannot stretch the menu — it scrolls inside the row instead.
+        headerViews = [
+            ScrollingLabelMenuItemView(width: toggleWidth, font: Self.headlineFont),
+            ScrollingLabelMenuItemView(width: toggleWidth, font: Self.detailFont),
+            ScrollingLabelMenuItemView(width: toggleWidth, font: Self.detailFont),
+        ]
+        for view in headerViews {
+            let item = NSMenuItem()
+            item.view = view
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+
         for entry in toggles {
             let item = NSMenuItem()
             item.view = ToggleMenuItemView(title: entry.title, width: toggleWidth,
@@ -178,19 +191,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Last: it styles the checklist item too, which does not exist until the menu is
         // fully built.
         updateStatusDisplay(status)
-    }
-
-    private func disabled(_ title: String, bold: Bool = false, small: Bool = false) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        let font = bold ? NSFont.menuBarFont(ofSize: 0)
-                        : small ? NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
-                                : NSFont.menuFont(ofSize: 0)
-        item.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [.font: font,
-                         .foregroundColor: small ? NSColor.secondaryLabelColor : NSColor.labelColor])
-        return item
     }
 
     @discardableResult
