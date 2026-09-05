@@ -1,11 +1,14 @@
 # BitPerfect DX
 
-App de barra de menu para macOS. Quando o **Music** começa a tocar, ele manda o áudio
-para o seu **Topping DX3 Pro+** e coloca o DAC na **taxa de amostragem nativa da faixa**,
-para o macOS não reamostrar nada no caminho.
+App de barra de menu para macOS. Quando o **Music** começa a tocar, ele manda o áudio para
+o seu DAC e coloca o DAC na **taxa de amostragem nativa da faixa**, para o macOS não
+reamostrar nada no caminho.
 
 Sem isso o DAC fica parado numa taxa só — normalmente a última que alguém usou — e todo
 o resto passa pelo conversor de taxa do CoreAudio antes de chegar nele.
+
+Funciona com qualquer DAC com fio. Foi escrito contra um Topping DX3 Pro+, que aparece
+como exemplo aqui e ali, mas nada no código conhece esse aparelho.
 
 ## Como usar
 
@@ -94,8 +97,8 @@ autoassinado. O nome precisa bater exatamente.
 1. Se o output do sistema não for o DAC, troca.
 2. Descobre a taxa nativa da faixa (detalhes abaixo).
 3. Ajusta o DAC para essa taxa e sobe o formato do barramento para a maior profundidade
-   disponível — o DX3 oferece 24 e 32 bits, e 32 nunca piora nada: só preenche os bits
-   menos significativos com zero.
+   que o aparelho oferecer. Subir a profundidade nunca piora nada: os bits a mais entram
+   zerados nas posições menos significativas.
 4. Avisa se o volume interno do Music ou o equalizador estiverem estragando o resultado.
 
 Com *Restart track on rate change* ligado (padrão), ele pausa, troca a taxa e recomeça a
@@ -115,7 +118,7 @@ Wire: 96 kHz 32-bit int (packed) 2ch                 ← o que sai no barramento
 ☐ Restore previous output when Music stops
 ☐ Dolby Atmos is set to Always On
 ─────────────────────────────────────────
-Output device                                     ▸
+Output device                                     ▸   ← DACs num grupo, demais saídas noutro
 When the rate is unknown                          ▸
 ─────────────────────────────────────────
 Re-apply now
@@ -147,6 +150,47 @@ laranja. O detalhe fica no relatório, a um clique — mais informativo que uma 
 resumo, e o cabeçalho continua sendo só fato.
 
 Volume e EQ do Music mudam sem notificar ninguém — veja **Verificação periódica** abaixo.
+
+## Qual DAC ele usa
+
+Três regras, nesta ordem:
+
+1. **O dispositivo escolhido por último no menu do app**, se estiver conectado.
+2. Senão, **o DAC conectado mais recentemente**.
+3. Senão, **os alto-falantes internos**.
+
+O dispositivo salvo é uma preferência que desempata, não um alvo que o app fica esperando:
+desconecte-o e outro DAC assume sozinho. É por isso que o visto no submenu marca o
+dispositivo **em uso**, e não o salvo — os dois divergem justamente quando o preferido está
+fora e outro assumiu.
+
+### O que conta como DAC
+
+USB, Thunderbolt e FireWire. Bluetooth e AirPlay ficam de fora porque reamostram por conta
+própria e não têm como ser bit-perfect. DisplayPort e HDMI também ficam fora da adoção
+automática — são com fio e carregam áudio digital, mas são um monitor ou uma TV, não algo
+para o app adotar sozinho. Continuam escolhíveis à mão, e uma escolha manual vale para
+qualquer saída.
+
+### Ordem de conexão
+
+O CoreAudio não informa há quanto tempo um aparelho está plugado, então o app mantém o
+próprio registro: um UID que aparece onde não estava é carimbado com a hora, e um que some
+é esquecido — desplugar e replugar conta como novo. Fica gravado nas preferências, para a
+ordem sobreviver a um relançamento com tudo ainda conectado. Aparelhos que já estavam lá
+na primeira execução empatam e são desempatados por nome, para não trocarem de lugar entre
+uma execução e outra.
+
+### Conectar e desconectar
+
+O app escuta `kAudioHardwarePropertyDevices` e reencaminha em 0,3 s — a pausa é para o HAL
+assentar antes de perguntar o que restou. Vale para os dois lados: desconectar o DAC que
+está tocando manda o áudio para o próximo em vez de deixá-lo nos alto-falantes, e conectar
+um DAC novo o coloca em jogo na hora.
+
+Isso **não** é o mesmo que a verificação periódica abaixo. Aquela atualiza o que o menu
+mostra; ela nunca reencaminha nada. Tratar as duas como um problema só foi o que deixou o
+hot-plug sem resposta por um tempo.
 
 ## Verificação periódica
 
@@ -256,13 +300,14 @@ O item *Check bit-perfect setup…* do menu roda a checagem e mostra tudo que d�
   `.movpkg` para ler e o Music não publica a taxa do stream para outros apps. Aí vale o
   fallback configurável (44,1 kHz por padrão). Baixe as faixas que te importam e a leitura
   vira exata.
-- **Sem DSD.** O DX3 aceita DSD por USB, mas o Music nunca envia DSD.
+- **Sem DSD.** Muitos DACs aceitam DSD por USB, mas o Music nunca envia DSD.
 
 ## Volume
 
 Deixe o volume interno do Music em 100% — ele atenua em software, antes do áudio sair do
-app. O controle de volume do macOS, nesse DAC, vai para o atenuador do próprio DX3, então
-esse pode usar à vontade.
+app. Já o controle de volume do macOS, quando o DAC expõe um, é repassado ao atenuador do
+próprio aparelho — esse pode usar à vontade. O item *Check bit-perfect setup…* diz qual dos
+dois casos é o seu.
 
 ## Idiomas
 
@@ -321,6 +366,24 @@ template images em monocromático e ignora `contentTintColor`. Tentar tingir a v
 não produz efeito nenhum.
 
 ## Diagnóstico
+
+Para entender qual dispositivo o app escolheu e por quê:
+
+```bash
+"build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --resolve
+```
+
+```
+DACs by recency:
+    DX3 Pro+  (USB)  connected 16:54:56
+    HiBy FC4  (USB)  connected 17:02:11
+Chosen in app: DX3 Pro+ — connected
+Rule applied: 1. the device chosen in the app
+Target: DX3 Pro+
+```
+
+Ele diz qual das três regras valeu, o que é difícil de deduzir olhando só o resultado.
+
 
 O menu tem *Show recent activity…*, que mostra as últimas decisões do app. Pela linha de
 comando:
