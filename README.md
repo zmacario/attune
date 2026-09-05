@@ -250,10 +250,11 @@ Em ordem de preferência:
 
 | Origem | Precisão | Quando |
 |---|---|---|
+| Log do player | exata | Faixas em **streaming** — veja abaixo |
 | `.movpkg` | exata | Faixas do Apple Music **baixadas** |
 | Arquivo de áudio | exata | AIFF, WAV, ALAC, MP3… na sua biblioteca |
 | Metadado do Music | aproximada | Quando existe um `sample rate` no catálogo |
-| Fallback configurável | chute | Streaming puro, sem download |
+| Fallback configurável | chute | Streaming quando o log não responde |
 
 O caso interessante é o `.movpkg`. Um download do Apple Music não é um arquivo de áudio: é
 um pacote HLS com **várias variantes da mesma faixa**, cada uma com sua taxa — AAC estéreo,
@@ -276,6 +277,45 @@ Para ver o que tem dentro de uma faixa:
 "build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --inspect ~/Music/Music/Media.localized/...
 ```
 
+### Streaming: lendo o log do player
+
+Uma faixa em streaming não tem arquivo para inspecionar, e o Music reporta a taxa dela como
+zero. Antes disso o app chutava 44,1 kHz para todas — o que rebaixa silenciosamente um
+stream de 96 kHz pela metade.
+
+O player do CoreMedia registra no log do sistema a variante que **realmente decodificou**:
+
+```
+[AudioFormat qlac is decodable] [AudioChannels 2] [Rendition Lossless]
+[SampleRate 96000] [BitDepth 24]
+```
+
+O app lê essa linha. Três coisas nisso não são óbvias, e cada uma custou um diagnóstico
+errado antes de ser entendida:
+
+**Usa `/usr/bin/log`, não o `OSLogStore`,** apesar de o subprocesso custar sete vezes mais
+por leitura (~800 ms contra ~100 ms). O `OSLogStore` lê o arquivo persistido, e entradas de
+nível info levam **minutos** para chegar lá: uma entrada recém-escrita pelo próprio processo
+seguia invisível a ele depois de 30 segundos, enquanto a ferramenta a via na hora. Uma
+resposta barata sobre um estado de minutos atrás não vale nada.
+
+**A janela olha para trás.** O player reporta ao preparar o item, então a linha costuma sair
+um a três segundos **antes** de o Music anunciar a troca de faixa. Uma janela que começa na
+troca procura no sentido errado. Ela também pode sair depois, então o app insiste por alguns
+segundos.
+
+**Não há correção no meio da faixa.** Se a linha não chegar a tempo, o app usa o fallback e
+não volta atrás. Aplicar um chute e revisá-lo depois colocaria um segundo corte no meio da
+música, em vez de no início — e trocar a taxa exige ~800 ms de reconfiguração do DAC, que
+não tem como ser silenciosa com o áudio rodando.
+
+Downloads não passam por aqui: o `.movpkg` é autoritativo e resolve na hora.
+
+Se o log não responder — Music fechado no start, ou a mensagem tendo mudado — o app desliga
+a leitura, registra o motivo e volta ao comportamento anterior. A verificação disso é feita
+uma vez, com uma pergunta que precisa ter resposta *e* ser sobre algo recente: perguntar se
+"qualquer entrada" pode ser lida responde sim com as entradas do próprio app.
+
 ## Ajustes que você precisa fazer à mão
 
 O AppleScript do Music não expõe estes, mas todos quebram o bit-perfect:
@@ -296,10 +336,9 @@ O item *Check bit-perfect setup…* do menu roda a checagem e mostra tudo que d�
   bit-transparente — que é o mesmo resultado que o BitPerfect original entregava. Mas se
   outro app tocar junto, o mixer soma os dois. Para modo exclusivo de verdade (hog mode,
   integer mode, DSD nativo) é preciso um player próprio, tipo Audirvana.
-- **Streaming sem download continua sendo chute.** Se a faixa não está baixada, não há
-  `.movpkg` para ler e o Music não publica a taxa do stream para outros apps. Aí vale o
-  fallback configurável (44,1 kHz por padrão). Baixe as faixas que te importam e a leitura
-  vira exata.
+- **O streaming depende de um log interno da Apple.** Funciona, e foi verificado em 44,1,
+  48 e 96 kHz, mas a mensagem que o app lê não é API pública. Se ela mudar de forma numa
+  atualização do macOS, o streaming volta ao fallback — sem quebrar mais nada.
 - **Sem DSD.** Muitos DACs aceitam DSD por USB, mas o Music nunca envia DSD.
 
 ## Volume
@@ -384,6 +423,17 @@ Target: DX3 Pro+
 
 Ele diz qual das três regras valeu, o que é difícil de deduzir olhando só o resultado.
 
+Para acompanhar o que o player está reportando, ao vivo:
+
+```bash
+"build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --watch-player
+```
+
+```
+19:54:02  Lossless  44.1 kHz  16-bit  2ch
+20:06:10  Lossless  96 kHz    24-bit  2ch
+```
+
 
 O menu tem *Show recent activity…*, que mostra as últimas decisões do app. Pela linha de
 comando:
@@ -410,6 +460,7 @@ Mostra taxa atual, formato do barramento e tudo que cada saída aceita. Dá para
 | `Sources/AudioDevice.swift` | Wrapper sobre a HAL do CoreAudio: enumerar saídas, ler/gravar taxa e formato físico |
 | `Sources/MusicBridge.swift` | Apple Events para o Music: faixa atual, caminho, volume, EQ |
 | `Sources/Movpkg.swift` | Parser de MP4/HLS que lê a taxa real dos downloads do Apple Music |
+| `Sources/PlayerLog.swift` | Lê do log do sistema o formato que o player decodificou |
 | `Sources/TrackFormat.swift` | Junta as origens e decide a taxa da faixa |
 | `Sources/Engine.swift` | Escuta `com.apple.Music.playerInfo` e aplica as mudanças |
 | `Sources/AppDelegate.swift` | Menu da barra e diálogos |
