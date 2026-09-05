@@ -14,6 +14,8 @@ o resto passa pelo conversor de taxa do CoreAudio antes de chegar nele.
 ```
 
 Aparece um ícone de onda na barra de menu com a taxa atual ao lado (`44.1k`, `96k`…).
+Ele fica **laranja** quando algo está atrapalhando o bit-perfect, para você não precisar
+abrir o menu só para conferir.
 
 Para instalar de vez, em `/Applications`, e marcar **Launch at login** no menu:
 
@@ -79,6 +81,56 @@ Você também pode apontar outro certificado com `CODESIGN_IDENTITY="nome" ./bui
 
 Com *Restart track on rate change* ligado (padrão), ele pausa, troca a taxa e recomeça a
 faixa do zero. Sem isso, a troca acontece no meio do stream e dá um clique audível.
+
+## O menu
+
+```
+DX3 Pro+ · 96 kHz                                    ← dispositivo e taxa atual
+Wire: 96 kHz 32-bit int (packed) 2ch                 ← o que sai no barramento
+▶ Seven Nation Army — The White Stripes · 24-bit / 192 kHz (download)
+─────────────────────────────────────────
+☑ Route Music to this device
+☑ Match the track's sample rate                      ← clicar não fecha o menu
+☑ Use the deepest bit format
+☑ Restart track on rate change
+☐ Restore previous output when Music stops
+☐ Dolby Atmos is set to Always On
+─────────────────────────────────────────
+Output device                                     ▸
+When the rate is unknown                          ▸
+─────────────────────────────────────────
+Re-apply now
+⚠️ Check bit-perfect setup…                          ← o ⚠️ só aparece quando há algo a corrigir
+Show recent activity…
+Open Audio MIDI Setup
+─────────────────────────────────────────
+☑ Launch at login
+Quit
+```
+
+Três detalhes de comportamento que não são óbvios olhando:
+
+**Os interruptores não fecham o menu.** Um `NSMenu` fecha assim que um item é selecionado
+e não há como desligar isso, então os seis viraram views próprias que absorvem o clique —
+o menu nunca chega a ver uma seleção. Dá para configurar tudo de uma vez. As ações de
+verdade (*Re-apply now*, *Check bit-perfect setup…*, *Quit*) continuam fechando, como
+esperado.
+
+**O cabeçalho tem sempre três linhas, e se atualiza com o menu aberto.** A contagem fixa é
+o que permite atualizar no lugar: qualquer linha que aparecesse ou sumisse empurraria as
+outras para cima ou para baixo, e um interruptor sairia de debaixo do seu cursor no meio
+do clique. Deixe o menu aberto durante uma troca de faixa e veja as três linhas mudarem
+sem nada se mexer.
+
+**O aviso mora no item que o resolve.** Volume interno do Music fora de 100% ou
+equalizador ligado marcam o *Check bit-perfect setup…* com ⚠️ e tingem o ícone da barra de
+laranja. O detalhe fica no relatório, a um clique — mais informativo que uma linha de
+resumo, e o cabeçalho continua sendo só fato.
+
+Volume e EQ do Music mudam sem notificar ninguém, então o app relê essas duas coisas a
+cada 15 segundos (com 5 de folga, para o sistema agrupar o despertar com outros) e
+sempre que você abre o menu. Com o Music fechado não custa nada: o ciclo para antes de
+mandar qualquer Apple Event.
 
 ## Como ele descobre a taxa
 
@@ -206,9 +258,16 @@ Mostra taxa atual, formato do barramento e tudo que cada saída aceita. Dá para
 | `Sources/Movpkg.swift` | Parser de MP4/HLS que lê a taxa real dos downloads do Apple Music |
 | `Sources/TrackFormat.swift` | Junta as origens e decide a taxa da faixa |
 | `Sources/Engine.swift` | Escuta `com.apple.Music.playerInfo` e aplica as mudanças |
-| `Sources/AppDelegate.swift` | Menu da barra |
+| `Sources/AppDelegate.swift` | Menu da barra e diálogos |
+| `Sources/ToggleMenuItemView.swift` | O item de menu que alterna sem fechar o menu |
+| `Sources/Settings.swift` | As opções, guardadas em `UserDefaults` |
+| `Sources/Localization.swift` | O `localized()` que lê as tabelas de idioma |
 | `Sources/Log.swift` | os_log + buffer circular para o *Show recent activity* |
 | `Resources/Snapshot.applescript` | A consulta ao Music, em arquivo próprio para o build validar |
+| `Resources/*.lproj` | Textos da interface, um diretório por idioma |
+| `tools/make-icon.swift` | Desenha o ícone; `make-icon.sh` empacota com `iconutil` |
+| `tools/check-localization.py` | Falha o build se faltar tradução |
+| `tools/create-signing-identity.sh` | Cria o certificado que preserva as permissões |
 
 Duas coisas que valem saber sobre o build:
 
