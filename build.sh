@@ -23,8 +23,14 @@ osacompile -o /dev/null Resources/Snapshot.applescript
 # app would quietly show "menu.quit" in its menu. Catch it here instead.
 python3 tools/check-localization.py
 
+# Regenerate the icon only when its source changed; rendering it compiles a second binary.
+if [ ! -f Resources/AppIcon.icns ] || [ tools/make-icon.swift -nt Resources/AppIcon.icns ]; then
+    ./tools/make-icon.sh
+fi
+
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/Snapshot.applescript "$APP/Contents/Resources/"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 for lproj in Resources/*.lproj; do
     cp -R "$lproj" "$APP/Contents/Resources/"
 done
