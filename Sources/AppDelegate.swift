@@ -172,6 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let loginItem = add(loginItemState.title, #selector(toggleLogin), on: loginItemState.checked)
         loginItem.isEnabled = loginItemState.enabled
+        add(localized("menu.about"), #selector(showAbout), on: nil)
         add(localized("menu.quit"), #selector(quit), on: nil, key: "q")
 
         // Last: it styles the checklist item too, which does not exist until the menu is
@@ -259,6 +260,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openAudioMIDI() {
         NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Audio MIDI Setup.app"))
+    }
+
+    /// The system panel rather than a window of our own: it already pulls the icon, name
+    /// and version straight from the bundle, and looks like every other About box.
+    @objc private func showAbout() {
+        // An accessory app is never frontmost on its own, so the panel would open behind
+        // whatever the user is looking at.
+        NSApp.activate(ignoringOtherApps: true)
+        let credits = NSAttributedString(
+            string: localized("about.credits"),
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

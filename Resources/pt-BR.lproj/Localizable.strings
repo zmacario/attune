@@ -69,3 +69,5 @@
 "source.metadata" = "Music";
 "menu.nothingPlaying" = "Nada tocando";
 "menu.trackFormat" = "%@ (%@)";
+"menu.about" = "Sobre o BitPerfect DX";
+"about.credits" = "Mantém o DAC na taxa de amostragem nativa da faixa que o Music está tocando, para o macOS não ter o que reamostrar.";
