@@ -41,12 +41,13 @@ enum PlayerLog {
     private static var store: OSLogStore?
     private static var method: Method = .undetermined
 
-    /// How long to wait between attempts, given what reading costs here: the framework
-    /// answers in about 100 ms, while spawning /usr/bin/log costs around 750 ms, and an
-    /// undetermined method may try both.
+    /// The gap between attempts, on top of what a read itself costs — about 100 ms via the
+    /// framework and about 800 ms via the tool. Kept short because the report, when it
+    /// comes at all, lands within roughly a second of the track change; the number of
+    /// attempts is what bounds the waste, not this.
     static var suggestedRetryInterval: TimeInterval {
         lock.lock(); defer { lock.unlock() }
-        return method == .store ? 0.8 : 2.0
+        return method == .store ? 0.3 : 0.6
     }
 
     /// False while the question has not been answerable yet — Music was not running.

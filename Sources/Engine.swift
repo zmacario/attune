@@ -43,13 +43,17 @@ final class Engine {
     private var trackKey: String?
     private var trackStartedAt = Date()
     private var missNotedForTrack = false
+    private var playerAttemptsMade = 0
 
-    /// How long to give the player to report a streamed track's format before giving up
-    /// and guessing, and how often to ask in the meantime.
-    /// Measured: the player's report lagged the track change by 0.4 s to 3.3 s, so three
-    /// seconds cut it off mid-stride. The gap between attempts comes from PlayerLog,
-    /// which knows what a read costs by the method that works here.
-    private static let playerWindow: TimeInterval = 6
+    /// How many times to ask the player before giving up and guessing.
+    ///
+    /// Bounded by attempts rather than elapsed time, because the cost is per read and some
+    /// tracks are never reported at all — a time budget with a short gap would spend
+    /// several reads on those for nothing. Measured: the report lands within about a second
+    /// of the track change when it lands at all, so three attempts cover it. The gap
+    /// between them comes from PlayerLog, which knows what a read costs by the method that
+    /// works here.
+    private static let playerAttempts = 3
 
     /// How far *before* the track change to look. Measured: the player reports a format
     /// about three seconds before Music posts its notification, because it reports while
@@ -229,6 +233,7 @@ final class Engine {
         guard key != trackKey else { return }
         trackKey = key
         missNotedForTrack = false
+        playerAttemptsMade = 0
         let position = min(track?.position ?? 0, 120)   // bound the log window we ask for
         trackStartedAt = Date().addingTimeInterval(-position)
     }
@@ -251,7 +256,8 @@ final class Engine {
                                    bitDepth: reported.bitDepth,
                                    source: .player)
             }
-            if Date().timeIntervalSince(trackStartedAt) < Self.playerWindow {
+            playerAttemptsMade += 1
+            if playerAttemptsMade < Self.playerAttempts {
                 // Nothing yet. Hold off rather than set a rate we would have to undo.
                 schedule(after: PlayerLog.suggestedRetryInterval)
                 return nil
