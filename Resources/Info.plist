@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>                     <string>BitPerfect DX</string>
+    <key>CFBundleDisplayName</key>              <string>BitPerfect DX</string>
+    <key>CFBundleExecutable</key>               <string>BitPerfectDX</string>
+    <key>CFBundleIdentifier</key>               <string>com.macario.bitperfectdx</string>
+    <key>CFBundlePackageType</key>              <string>APPL</string>
+    <key>CFBundleShortVersionString</key>       <string>1.0</string>
+    <key>CFBundleVersion</key>                  <string>1</string>
+    <key>LSMinimumSystemVersion</key>           <string>13.0</string>
+    <key>LSUIElement</key>                      <true/>
+    <key>NSAppleMusicUsageDescription</key>
+    <string>BitPerfect DX reads the sample rate of your downloaded Apple Music tracks so it can set your DAC to match them.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>BitPerfect DX asks Music which track is playing so it can set your DAC to that track's sample rate.</string>
+</dict>
+</plist>
