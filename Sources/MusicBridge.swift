@@ -38,7 +38,7 @@ enum MusicBridge {
 
     /// Apple Events are serialised here: NSAppleScript is not thread-safe, and the compiled
     /// script cache below is shared.
-    private static let queue = DispatchQueue(label: "bitperfectdx.music")
+    private static let queue = DispatchQueue(label: "attune.music")
     private static var compiled: [String: NSAppleScript] = [:]
 
     /// Compiling a script that opens with `tell application id "com.apple.Music"` makes

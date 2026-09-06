@@ -8,19 +8,19 @@
         <string>en</string>
         <string>pt-BR</string>
     </array>
-    <key>CFBundleName</key>                     <string>BitPerfect DX</string>
-    <key>CFBundleDisplayName</key>              <string>BitPerfect DX</string>
-    <key>CFBundleExecutable</key>               <string>BitPerfectDX</string>
+    <key>CFBundleName</key>                     <string>Attune</string>
+    <key>CFBundleDisplayName</key>              <string>Attune</string>
+    <key>CFBundleExecutable</key>               <string>Attune</string>
     <key>CFBundleIconFile</key>                 <string>AppIcon</string>
-    <key>CFBundleIdentifier</key>               <string>com.macario.bitperfectdx</string>
+    <key>CFBundleIdentifier</key>               <string>com.macario.attune</string>
     <key>CFBundlePackageType</key>              <string>APPL</string>
     <key>CFBundleShortVersionString</key>       <string>1.2</string>
     <key>CFBundleVersion</key>                  <string>3</string>
     <key>LSMinimumSystemVersion</key>           <string>13.0</string>
     <key>LSUIElement</key>                      <true/>
     <key>NSAppleMusicUsageDescription</key>
-    <string>BitPerfect DX reads the sample rate of your downloaded Apple Music tracks so it can set your DAC to match them.</string>
+    <string>Attune reads the sample rate of your downloaded Apple Music tracks so it can set your DAC to match them.</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>BitPerfect DX asks Music which track is playing so it can set your DAC to that track's sample rate.</string>
+    <string>Attune asks Music which track is playing so it can set your DAC to that track's sample rate.</string>
 </dict>
 </plist>

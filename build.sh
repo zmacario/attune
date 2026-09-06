@@ -1,10 +1,10 @@
 #!/bin/bash
-# Builds BitPerfect DX.app from source. Needs only the Command Line Tools.
+# Builds Attune.app from source. Needs only the Command Line Tools.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="build/BitPerfect DX.app"
-BIN="$APP/Contents/MacOS/BitPerfectDX"
+APP="build/Attune.app"
+BIN="$APP/Contents/MacOS/Attune"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -42,7 +42,7 @@ done
 # Music prompt comes back. A self-signed certificate anchors the requirement to the
 # certificate instead, and rebuilds keep what you granted. See README → Permissões.
 IDENTITY="${CODESIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
-    | sed -n 's/.*"\(BitPerfect DX Local\)"/\1/p' | head -1)}"
+    | sed -n 's/.*"\(Attune Local\)"/\1/p' | head -1)}"
 
 if [ -n "$IDENTITY" ]; then
     echo "Signing as: $IDENTITY"
@@ -52,18 +52,18 @@ else
     echo "Run ./tools/create-signing-identity.sh once to stop that."
 fi
 
-codesign --force --sign "$IDENTITY" --identifier com.macario.bitperfectdx "$APP"
+codesign --force --sign "$IDENTITY" --identifier com.macario.attune "$APP"
 
 echo "Built $APP"
 
 # With a copy in /Applications and another here, it is far too easy to rebuild and then
 # keep running the old one. `./build.sh --install` replaces the installed copy.
 if [ "${1:-}" = "--install" ]; then
-    if pgrep -f "BitPerfect DX.app" >/dev/null; then
-        echo "Quit BitPerfect DX first (menu bar → Quit), then run this again." >&2
+    if pgrep -f "Attune.app" >/dev/null; then
+        echo "Quit Attune first (menu bar → Quit), then run this again." >&2
         exit 1
     fi
-    rm -rf "/Applications/BitPerfect DX.app"
+    rm -rf "/Applications/Attune.app"
     cp -R "$APP" /Applications/
-    echo "Installed /Applications/BitPerfect DX.app"
+    echo "Installed /Applications/Attune.app"
 fi

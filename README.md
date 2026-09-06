@@ -1,4 +1,4 @@
-# BitPerfect DX
+# Attune
 
 App de barra de menu para macOS. Quando o **Music** começa a tocar, ele manda o áudio para
 o seu DAC e coloca o DAC na **taxa de amostragem nativa da faixa**, para o macOS não
@@ -13,7 +13,7 @@ como exemplo aqui e ali, mas nada no código conhece esse aparelho.
 ## Como usar
 
 ```bash
-./build.sh && open "build/BitPerfect DX.app"
+./build.sh && open "build/Attune.app"
 ```
 
 Aparece um ícone de onda na barra de menu com a taxa atual ao lado (`44.1k`, `96k`…).
@@ -66,14 +66,14 @@ no certificado, que não muda:
 ./tools/create-signing-identity.sh
 ```
 
-O `build.sh` encontra o certificado pelo nome `BitPerfect DX Local` e passa a usá-lo
+O `build.sh` encontra o certificado pelo nome `Attune Local` e passa a usá-lo
 sozinho; sem ele, avisa no terminal que assinou ad-hoc. Você também pode apontar outro com
 `CODESIGN_IDENTITY="nome" ./build.sh`.
 
 O requirement passa a ser:
 
 ```
-designated => identifier "com.macario.bitperfectdx"
+designated => identifier "com.macario.attune"
               and certificate leaf = H"b87be2ba…"
 ```
 
@@ -89,7 +89,7 @@ diretório temporário.
 
 **Se falhar no `add-trusted-cert`**, que altera as configurações de confiança e pede sua
 aprovação, dá para fazer pela interface: **Acesso às Chaves → Assistente de Certificado →
-Criar um certificado**, nome `BitPerfect DX Local`, tipo *Assinatura de código*,
+Criar um certificado**, nome `Attune Local`, tipo *Assinatura de código*,
 autoassinado. O nome precisa bater exatamente.
 
 ## O que ele faz a cada faixa
@@ -285,7 +285,7 @@ ALAC. Depois escolhe qual variante o Music vai tocar:
 Para ver o que tem dentro de uma faixa:
 
 ```bash
-"build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --inspect ~/Music/Music/Media.localized/...
+"build/Attune.app/Contents/MacOS/Attune" --inspect ~/Music/Music/Media.localized/...
 ```
 
 ### Lembrando o que já foi ouvido
@@ -398,13 +398,13 @@ relato de problema.
 Para ver o app noutro idioma sem mexer no sistema inteiro:
 
 ```bash
-defaults write com.macario.bitperfectdx AppleLanguages -array pt-BR
+defaults write com.macario.attune AppleLanguages -array pt-BR
 ```
 
 Feche e reabra o app. Para voltar ao idioma do sistema:
 
 ```bash
-defaults delete com.macario.bitperfectdx AppleLanguages
+defaults delete com.macario.attune AppleLanguages
 ```
 
 O mesmo existe na interface, em **Ajustes do Sistema → Geral → Idioma e Região →
@@ -446,7 +446,7 @@ não produz efeito nenhum.
 Para entender qual dispositivo o app escolheu e por quê:
 
 ```bash
-"build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --resolve
+"build/Attune.app/Contents/MacOS/Attune" --resolve
 ```
 
 ```
@@ -463,7 +463,7 @@ Ele diz qual das três regras valeu, o que é difícil de deduzir olhando só o 
 Para acompanhar o que o player está reportando, ao vivo:
 
 ```bash
-"build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --watch-player
+"build/Attune.app/Contents/MacOS/Attune" --watch-player
 ```
 
 ```
@@ -492,7 +492,7 @@ O menu tem *Show recent activity…*, que mostra as últimas decisões do app. P
 comando:
 
 ```bash
-/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.macario.bitperfectdx"'
+/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.macario.attune"'
 ```
 
 Passos que demoram mais de 50 ms se registram sozinhos, então lentidão aparece no log sem
@@ -500,7 +500,7 @@ precisar mexer em nada. Use `/usr/bin/log` com caminho completo se você tiver u
 `log` no shell.
 
 ```bash
-"build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --list-devices
+"build/Attune.app/Contents/MacOS/Attune" --list-devices
 ```
 
 Mostra taxa atual, formato do barramento e tudo que cada saída aceita. Dá para deixar o

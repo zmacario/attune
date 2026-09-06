@@ -55,7 +55,7 @@ final class Settings {
 
     /// Hidden, off by default: measures whether playback keeps running while the device
     /// reconfigures, at the cost of two Apple Events inside the very gap being measured.
-    /// Enable with `defaults write com.macario.bitperfectdx measureContinuity -bool true`.
+    /// Enable with `defaults write com.macario.attune measureContinuity -bool true`.
     var measureContinuity: Bool { bool("measureContinuity", default: false) }
 
     /// Formats already learned, keyed by track.

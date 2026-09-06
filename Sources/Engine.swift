@@ -23,7 +23,7 @@ struct EngineStatus: Equatable {
 final class Engine {
     static let shared = Engine()
 
-    private let work = DispatchQueue(label: "bitperfectdx.engine")
+    private let work = DispatchQueue(label: "attune.engine")
     private let settings = Settings.shared
     private var pendingWork: DispatchWorkItem?
     private var poll: DispatchSourceTimer?
