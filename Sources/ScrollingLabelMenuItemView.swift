@@ -89,7 +89,7 @@ final class ScrollingLabelMenuItemView: NSView {
         // Right to left the row reads from the other edge, and the scroll runs the other
         // way with it: the text sits flush against the trailing inset and travels right,
         // uncovering its far end exactly as the left-to-right case uncovers its own.
-        let x = NSApp.userInterfaceLayoutDirection == .rightToLeft
+        let x = interfaceIsRightToLeft
             ? bounds.width - Self.horizontalInset - size.width + offset
             : Self.horizontalInset - offset
         text.draw(at: NSPoint(x: x, y: ((bounds.height - size.height) / 2).rounded()))

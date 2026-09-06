@@ -19,9 +19,7 @@ final class ToggleMenuItemView: NSView {
     /// Arabic and Hebrew put the checkmark on the right and the text to its left. Every
     /// position here is measured from the leading edge, so mirroring is one reflection
     /// rather than a second set of constants.
-    private static var isRTL: Bool {
-        NSApp.userInterfaceLayoutDirection == .rightToLeft
-    }
+    private static var isRTL: Bool { interfaceIsRightToLeft }
 
     private static func leading(_ x: CGFloat, width: CGFloat, of itemWidth: CGFloat) -> CGFloat {
         isRTL ? itemWidth - x - width : x

@@ -123,6 +123,8 @@ final class Engine {
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
         Log.write("engine start; version \(version) (\(build)); Music running=\(MusicBridge.isRunning)")
+        Log.write("localization=\(Bundle.main.preferredLocalizations.first ?? "?")"
+                  + " layout=\(interfaceIsRightToLeft ? "RTL" : "LTR")")
         for name in ["com.apple.Music.playerInfo", "com.apple.iTunes.playerInfo"] {
             center.addObserver(self,
                                selector: #selector(playerInfoChanged(_:)),
