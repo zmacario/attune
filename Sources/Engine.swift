@@ -45,6 +45,11 @@ final class Engine {
     private var missNotedForTrack = false
     private var playerAttemptsMade = 0
 
+    /// The player item whose format was used for the previous track. A report carrying the
+    /// same item belongs to that track, not this one — timing alone could not tell them
+    /// apart, and skipping quickly made neighbouring tracks swap formats.
+    private var lastPlayerItem: String?
+
     /// How many times to ask the player before giving up and guessing.
     ///
     /// Bounded by attempts rather than elapsed time, because the cost is per read and some
@@ -55,10 +60,18 @@ final class Engine {
     /// works here.
     private static let playerAttempts = 3
 
-    /// How far *before* the track change to look. Measured: the player reports a format
-    /// about three seconds before Music posts its notification, because it reports while
-    /// preparing the item. A window that starts at the track change looks in the wrong
-    /// direction and finds nothing, every time.
+    /// How long after a track change a late report may still change the answer.
+    ///
+    /// Skipping faster than the player reports leaves the app describing one track while
+    /// the player describes the next, and no rule reconciles two sources sampled at
+    /// different moments. Re-resolving when a later report arrives converges during that
+    /// scramble, while the bound keeps it from ever revisiting a track that has settled —
+    /// a correction there would be a dropout in the middle of the music.
+    private static let playerSettlingWindow: TimeInterval = 3
+
+    /// How far *before* the track change a report may still belong to it. Generous,
+    /// because the item identifier is what keeps the previous track's report out; this is
+    /// only a sanity bound on how old an answer may be.
     private static let playerLookback: TimeInterval = 10
 
 
@@ -86,6 +99,7 @@ final class Engine {
         // Settle the log question once, so a streamed track never waits for a permission
         // the app does not have.
         work.async { Log.timed("player probe") { PlayerLog.probe() } }
+        PlayerLog.onNewFormat = { [weak self] in self?.playerReportedNewItem() }
         warmUpMediaAccess()
         // If Music is already playing when we launch, act on it right away.
         if MusicBridge.isRunning { schedule(after: 0.3) }
@@ -107,6 +121,17 @@ final class Engine {
         deviceListener = block
         let status = AudioObjectAddPropertyListenerBlock(CA.system, &address, work, block)
         if status != noErr { Log.write("device listener FAILED: \(status)") }
+    }
+
+    /// A report for an item we have not used yet, arriving while the track is still
+    /// settling. Worth another look; after the window, deliberately ignored.
+    private func playerReportedNewItem() {
+        work.async { [weak self] in
+            guard let self else { return }
+            guard Date().timeIntervalSince(self.trackStartedAt) < Self.playerSettlingWindow else { return }
+            Log.write("player reported a new item while the track was settling; re-resolving")
+            self.schedule(after: 0.05)
+        }
     }
 
     private func startPolling() {
@@ -247,7 +272,9 @@ final class Engine {
 
         if streaming, PlayerLog.isAvailable {
             let searchFrom = trackStartedAt.addingTimeInterval(-Self.playerLookback)
-            if let reported = PlayerLog.latestFormat(since: searchFrom) {
+            if let reported = PlayerLog.latestFormat(since: searchFrom),
+               reported.item.isEmpty || reported.item != lastPlayerItem {
+                lastPlayerItem = reported.item
                 PlayerLog.noteHit()
                 Log.write("player reports \(reported.rendition) \(rateLabel(reported.sampleRate))"
                           + " \(reported.bitDepth.map { "\($0)-bit" } ?? "")"

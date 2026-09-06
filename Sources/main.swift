@@ -66,7 +66,7 @@ if CommandLine.arguments.contains("--watch-player") {
         if let format = PlayerLog.latestFormat(since: Date().addingTimeInterval(window)) {
             let depth = format.bitDepth.map { "\($0)-bit" } ?? "—"
             let channels = format.channels.map { "\($0)ch" } ?? "—"
-            let line = "\(format.rendition)  \(rateLabel(format.sampleRate))  \(depth)  \(channels)"
+            let line = "\(format.rendition)  \(rateLabel(format.sampleRate))  \(depth)  \(channels)  \(format.item)"
             if line != last {
                 let stamp = DateFormatter()
                 stamp.dateFormat = "HH:mm:ss"
