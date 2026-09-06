@@ -508,12 +508,14 @@ that window: after it, a correction would be a cut in the middle of the music.
 If the log does not answer, the app switches the reading off, records why, and reverts to the
 earlier behaviour. The check is made once, with a question that has to have an answer **and**
 be about something recent: asking whether "any entry" can be read answers yes using the app's
-own entries. Five streamed tracks in a row with nothing parsed also stands the reading down.
+own entries. Five tracks in a row with nothing parsed also stands the reading down.
 
-That last count only advances on streamed tracks, since a download resolves from its file
-without waiting and so never learns whether the player would have spoken. A library of
-downloads would therefore keep a `log stream` running past the point of usefulness — no
-worse audio, just a subprocess earning nothing.
+That count advances when a track **ends** without the player ever having described it, which
+is the only fair moment to ask. Counting during playback would condemn every download, since
+a download resolves from its own file long before the player gets round to speaking. Judging
+mid-track was why this used to be counted for streamed tracks alone — and why a library of
+downloads could never stand a dead reader down at all, leaving a `log stream` running past
+the point of usefulness.
 
 #### The two messages, and why this one
 

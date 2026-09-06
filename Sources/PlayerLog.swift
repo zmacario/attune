@@ -336,6 +336,11 @@ enum PlayerLog {
         }
     }
 
+    /// Only for tools/ harnesses: settles the method without touching the system log.
+    static func forceMethodForTesting() {
+        lock.lock(); method = .tool; givenUp = false; misses = 0; lock.unlock()
+    }
+
     // MARK: Parsing
 
     private static let fields = try! NSRegularExpression(

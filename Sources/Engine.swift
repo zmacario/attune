@@ -42,7 +42,6 @@ final class Engine {
     /// since this track started" is the only correlation available.
     private var trackKey: String?
     private var trackStartedAt = Date()
-    private var missNotedForTrack = false
     private var playerAttemptsMade = 0
 
     /// The player item whose format was used for the previous track. A report carrying the
@@ -343,9 +342,16 @@ final class Engine {
             Settings.cacheKey(id: $0.persistentID, name: $0.name, artist: $0.artist)
         } ?? "-"
         guard key != trackKey else { return }
+        // A track is only fairly judged once it is over. Counting a miss while one plays
+        // would condemn every download, which resolves from its file long before the player
+        // gets round to speaking — which is why this used to be counted for streamed tracks
+        // alone, and why a library of downloads could never stand a dead reader down.
+        if trackKey != nil, playerFormatForTrack == nil, PlayerLog.isAvailable {
+            PlayerLog.noteMiss()
+        }
+
         trackKey = key
         preSwitchedFor = nil
-        missNotedForTrack = false
         playerAttemptsMade = 0
         playerFormatForTrack = nil
         let position = min(track?.position ?? 0, 120)   // bound the log window we ask for
@@ -398,12 +404,6 @@ final class Engine {
                     schedule(after: PlayerLog.suggestedRetryInterval)
                     return nil
                 }
-            }
-            if streaming, !missNotedForTrack {
-                // Once per track, not once per attempt: the window expiring is re-checked
-                // on every later event for the same track.
-                missNotedForTrack = true
-                PlayerLog.noteMiss()
             }
         }
 
