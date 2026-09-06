@@ -120,9 +120,8 @@ Wire: 96 kHz 32-bit int (packed) 2ch                 ← o que sai no barramento
 ☑ Use the deepest bit format
 ☑ Pause during rate changes
 ☐ Restore previous output when Music stops
-☐ Dolby Atmos is set to Always On
 ─────────────────────────────────────────
-Output device                                     ▸   ← DACs num grupo, demais saídas noutro
+Output device                                     ▸   ← DACs num grupo, atualizado ao vivo
 When the rate is unknown                          ▸
 ─────────────────────────────────────────
 Re-apply now
@@ -141,6 +140,11 @@ e não há como desligar isso, então os seis viraram views próprias que absorv
 o menu nunca chega a ver uma seleção. Dá para configurar tudo de uma vez. As ações de
 verdade (*Re-apply now*, *Check bit-perfect setup…*, *Quit*) continuam fechando, como
 esperado.
+
+**A lista de dispositivos acompanha o hardware.** Conectar ou desconectar um DAC muda o
+submenu na hora, mesmo com o menu já aberto — ele é reconstruído pelo mesmo aviso do
+CoreAudio que dispara o reencaminhamento. O menu principal continua nunca sendo reconstruído
+enquanto aberto, porque isso arrancaria a linha sob o cursor; submenu tem ciclo próprio.
 
 **O cabeçalho tem sempre três linhas, e se atualiza com o menu aberto.** A contagem fixa é
 o que permite atualizar no lugar: qualquer linha que aparecesse ou sumisse empurraria as
@@ -254,7 +258,7 @@ Em ordem de preferência:
 
 | Origem | Precisão | Quando |
 |---|---|---|
-| Log do player | exata | Faixas em **streaming** — veja abaixo |
+| Log do player | exata | **Todas** as faixas — veja abaixo |
 | `.movpkg` | exata | Faixas do Apple Music **baixadas** |
 | Arquivo de áudio | exata | AIFF, WAV, ALAC, MP3… na sua biblioteca |
 | Metadado do Music | aproximada | Quando existe um `sample rate` no catálogo |
@@ -269,9 +273,11 @@ O app abre o segmento de inicialização MP4 de cada variante e lê a taxa real 
 `timescale` da caixa `mdhd`, o codec da caixa `frma` e a profundidade de bits do cookie
 ALAC. Depois escolhe qual variante o Music vai tocar:
 
-- variantes **Atmos** (`ec-3`) são ignoradas, porque com Dolby Atmos em *Automático* — o
-  padrão — um DAC USB estéreo recebe o stream estéreo, não o espacial. Se você deixou Atmos
-  em *Sempre Ativado*, marque **Dolby Atmos is set to Always On** no menu;
+- variantes **Atmos** (`ec-3`) são ignoradas de vez. Ler o pacote mostra que existe uma
+  variante Atmos, mas não se o Music a escolheu — e isso já era um ajuste manual no menu,
+  que pedia a você uma configuração interna do Music e errava em silêncio quando respondido
+  errado. O log do player diz qual variante foi decodificada, então o palpite foi apagado
+  junto com o interruptor;
 - entre as estéreo, ele escolhe **ALAC** se o Lossless estiver ligado no Music
   (lê `losslessEnabled`), senão a AAC de maior bitrate.
 
@@ -281,11 +287,17 @@ Para ver o que tem dentro de uma faixa:
 "build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --inspect ~/Music/Music/Media.localized/...
 ```
 
-### Streaming: lendo o log do player
+### Lendo o log do player
 
 Uma faixa em streaming não tem arquivo para inspecionar, e o Music reporta a taxa dela como
 zero. Sem isso o app chutaria 44,1 kHz para todas — rebaixando pela metade um stream de
 96 kHz, em silêncio.
+
+O log é consultado para **todas** as faixas, não só as em streaming. Ele é a única fonte que
+sabe qual variante o Music realmente escolheu, incluindo Dolby Atmos — ler o `.movpkg` vê
+que uma variante Atmos existe, não que ela está tocando. Um download continua resolvendo do
+arquivo na hora quando o log ainda não respondeu, então nada passou a esperar; se depois as
+duas leituras discordarem, a correção acontece dentro da janela de acomodação.
 
 O player do CoreMedia registra no log do sistema a variante que **realmente decodificou**:
 
