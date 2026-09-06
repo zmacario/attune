@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let warningIcon = statusImage(warning: true)
 
     private static func statusImage(warning: Bool) -> NSImage? {
-        let description = "BitPerfect DX"
+        let description = "Attune"
         guard warning else {
             return NSImage(systemSymbolName: "waveform", accessibilityDescription: description)
         }

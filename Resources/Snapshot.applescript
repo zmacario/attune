@@ -1,4 +1,4 @@
--- Everything BitPerfect DX needs from Music, in one round trip: what's playing, where the
+-- Everything Attune needs from Music, in one round trip: what's playing, where the
 -- file lives, and the two settings that would quietly break bit-perfect playback.
 --
 -- Variable names are deliberately long: short ones collide with scripting terminology

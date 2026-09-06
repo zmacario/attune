@@ -1,4 +1,4 @@
-/* BitPerfect DX — user-facing strings. Keys are dotted and stable;
+/* Attune — user-facing strings. Keys are dotted and stable;
    the English wording can change without touching the code. */
 
 "activity.copy" = "Copy all";
@@ -33,7 +33,7 @@
 "fix.nothing" = "Nothing changed.";
 "fix.partial" = "Partly fixed";
 "fix.volume" = "Music volume set to 100%";
-"login.approveBody" = "macOS needs you to approve BitPerfect DX under Login Items.";
+"login.approveBody" = "macOS needs you to approve Attune under Login Items.";
 "login.failed" = "Couldn't change the login item";
 "login.needsApproval" = "Launch at login (approve in System Settings…)";
 "login.needsVentura" = "Launch at login (needs macOS 13)";
@@ -67,7 +67,7 @@
 "source.metadata" = "Music";
 "menu.nothingPlaying" = "Nothing playing";
 "menu.trackFormat" = "%@ (%@)";
-"menu.about" = "About BitPerfect DX";
+"menu.about" = "About Attune";
 "about.credits" = "Keeps your DAC on the native sample rate of whatever Music is playing, so macOS has nothing to resample.";
 "menu.noDAC" = "No DAC connected";
 "menu.dacs" = "DACs";

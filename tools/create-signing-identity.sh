@@ -1,5 +1,5 @@
 #!/bin/bash
-# Creates a self-signed code-signing certificate named "BitPerfect DX Local" in your
+# Creates a self-signed code-signing certificate named "Attune Local" in your
 # login keychain, so that rebuilding the app keeps the permissions you granted it.
 #
 # Why this is needed: an ad-hoc signature's designated requirement is the hash of the
@@ -10,7 +10,7 @@
 # You will be asked to approve the trust change.
 set -euo pipefail
 
-NAME="BitPerfect DX Local"
+NAME="Attune Local"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "$NAME"; then

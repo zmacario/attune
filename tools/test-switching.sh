@@ -12,12 +12,12 @@ cd "$(dirname "$0")/.."
 
 SKIPS=${1:-8}
 GAP=${2:-1.2}
-APP="/Applications/BitPerfect DX.app"
-BIN="$APP/Contents/MacOS/BitPerfectDX"
+APP="/Applications/Attune.app"
+BIN="$APP/Contents/MacOS/Attune"
 sleep_for() { python3 -c "import time,sys; time.sleep(float(sys.argv[1]))" "$1"; }
 
-pkill -f "BitPerfect DX.app" 2>/dev/null
-for _ in $(seq 1 25); do pgrep -f "BitPerfect DX.app" >/dev/null || break; sleep_for 0.2; done
+pkill -f "Attune.app" 2>/dev/null
+for _ in $(seq 1 25); do pgrep -f "Attune.app" >/dev/null || break; sleep_for 0.2; done
 
 ./build.sh --install >/dev/null || { echo "build failed"; exit 1; }
 MARK=$(date "+%Y-%m-%d %H:%M:%S")

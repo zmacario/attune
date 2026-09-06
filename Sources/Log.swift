@@ -4,7 +4,7 @@ import os
 /// os_log for `log stream`, plus a small ring buffer so the menu can show what just happened
 /// without anyone having to open Console.
 enum Log {
-    static let subsystem = "com.macario.bitperfectdx"
+    static let subsystem = "com.macario.attune"
     private static let logger = Logger(subsystem: subsystem, category: "engine")
     private static let lock = NSLock()
     private static var ring: [String] = []
