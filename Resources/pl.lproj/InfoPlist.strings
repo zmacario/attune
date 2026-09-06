@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "Attune pyta Muzykę, który utwór jest odtwarzany, aby ustawić DAC na częstotliwość tego utworu.";
+"NSAppleMusicUsageDescription" = "Attune odczytuje częstotliwość próbkowania pobranych utworów Apple Music, aby dopasować do nich DAC.";

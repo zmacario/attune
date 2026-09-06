@@ -685,8 +685,8 @@ device's own attenuator, and that one you can use freely. The menu's
 ## Languages
 
 The interface follows the system language, and falls back to English when there is no
-match. Seven are shipped — English plus the five most spoken languages in the world by
-total speakers, plus Portuguese:
+match. Twelve are shipped: English, the five most spoken languages in the world by total
+speakers, the five most spoken in Europe that those did not already cover, and Portuguese.
 
 | | | |
 |---|---|---|
@@ -696,6 +696,11 @@ total speakers, plus Portuguese:
 | `es` | Spanish | ~560 M |
 | `ar` | Arabic | ~422 M, right to left |
 | `fr` | French | ~310 M |
+| `ru` | Russian | most native speakers in Europe, ~106 M |
+| `de` | German | ~85 M |
+| `it` | Italian | ~58 M |
+| `pl` | Polish | ~38 M |
+| `uk` | Ukrainian | ~33 M |
 | `pt-BR` | Portuguese (Brazil) | the author's |
 
 **These translations have not been reviewed by native speakers.** They are careful, and the

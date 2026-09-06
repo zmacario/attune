@@ -7,6 +7,11 @@ itself, so the app would quietly show "menu.quit" in the menu.
 A dropped specifier is worse. `String(format:)` reads its arguments positionally
 from the translated string, so a "%ld" lost in translation makes it read an
 argument that was never passed. This catches both before they ship.
+
+A literal percent sign is the same trap wearing a disguise: "100% gesetzt" reads
+as the specifier "% g", so a percentage followed by a word is flagged here even
+though the key takes no arguments today. Put it at the end of the sentence, or
+write "%%".
 """
 import pathlib, re, sys
 

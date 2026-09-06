@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "Attune fragt Musik, welcher Titel läuft, um deinen DAC auf dessen Abtastrate zu setzen.";
+"NSAppleMusicUsageDescription" = "Attune liest die Abtastrate deiner geladenen Apple-Music-Titel, um deinen DAC darauf einzustellen.";
