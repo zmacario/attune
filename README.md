@@ -455,7 +455,8 @@ O item *Check bit-perfect setup…* do menu roda a checagem e mostra tudo que d�
 
 ## Consumo
 
-Medido num MacBook Pro Intel, com o app ligado e o Music tocando o tempo todo:
+Medido com o app ligado e o Music tocando o tempo todo, no ambiente descrito em
+[Onde isto foi medido](#onde-isto-foi-medido):
 
 | | |
 |---|---|
@@ -482,6 +483,38 @@ ocupam ~4 KB, e mesmo cheio, com 50 000, seriam ~4 MB.
 A contagem de threads varia porque quase todas são threads de trabalho que o libdispatch
 cria e recolhe sozinho — o app declara só duas filas próprias (`attune.engine` e
 `attune.music`) mais a principal, e o tempo de CPU fica quase todo nesta última.
+
+### Onde isto foi medido
+
+Todos os números deste README — consumo, os 730 ms de relock do DAC, os tempos de Apple
+Event, a latência do cache — vieram desta máquina. Hardware diferente dá números
+diferentes, sobretudo o relock, que é característica do DAC.
+
+| | |
+|---|---|
+| máquina | MacBook Pro (MacBookPro15,1), Intel Core i9 8 núcleos a 2,4 GHz, 32 GB |
+| sistema | macOS 15.7.9 (24G830), Darwin 24.6.0 x86_64 |
+| Music | 1.5.6 |
+| compilador | Swift 6.1.2 (swiftlang-6.1.2.1.2, clang-1700.0.13.5), alvo x86_64-apple-macosx15.0 |
+| ferramentas | Command Line Tools, sem Xcode |
+| app | Attune 1.3 (4), assinado com certificado próprio |
+
+Saídas presentes durante os testes:
+
+| dispositivo | transporte | taxas | bits |
+|---|---|---|---|
+| **Topping DX3 Pro+** | USB | 44,1 – 768 kHz | 24, 32 |
+| **HiBy FC4** | USB | 32 – 768 kHz | 16, 24, 32 |
+| MacBook Pro Speakers | interno | 44,1 – 96 kHz | 32 |
+| DP1 | DisplayPort | 32 – 48 kHz | 16, 20, 24 |
+
+O **DX3 Pro+** foi o alvo na maior parte dos testes, incluindo as 30 trocas de taxa que
+estabeleceram os 724–740 ms de relock e as transições antecipadas. O **HiBy FC4** serviu
+para verificar a escolha por ordem de conexão com dois DACs presentes. O DisplayPort está
+na lista de propósito: ele **não** é adotado como DAC, e serviu para confirmar isso.
+
+As faixas de teste vieram da playlist *Favourite Songs* no Apple Music, com material em
+44,1 kHz (16 e 24 bits), 48 kHz e 96 kHz/24 bits, baixado e em streaming.
 
 ## Volume
 
