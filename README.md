@@ -441,6 +441,56 @@ Em **Music → Ajustes → Reprodução**:
 
 O item *Check bit-perfect setup…* do menu roda a checagem e mostra tudo que dá para verificar.
 
+## Como ele se compara
+
+Este app não inventou o problema nem a solução. Vale registrar o que já existe, e o que
+aqui é diferente — comparação feita a partir da documentação pública de cada um, não de tê-los
+rodado lado a lado.
+
+| | como resolve | modelo |
+|---|---|---|
+| [LosslessSwitcher](https://github.com/vincentneo/LosslessSwitcher) | lê o log do Apple Music via OSLog | grátis, código aberto |
+| [BeatPerfect](https://beatperfect.strux.pro/) | aprende o formato ouvindo, aplica na próxima vez | assinatura, US$ 2,90/mês |
+| DACorum, MyAudioFormat | você troca a taxa à mão, mais rápido que no Audio MIDI | pagos, na App Store |
+
+O **LosslessSwitcher** chegou primeiro, em 2022, e a técnica central do Attune — ler o que o
+CoreMedia reporta — é a mesma ideia. Não há novidade nisso.
+
+O que o Attune faz de diferente:
+
+**Usa as duas técnicas juntas.** O log resolve a primeira audição; o cache resolve as
+seguintes em 1 ms, sem perguntar nada ao Music. O LosslessSwitcher não guarda nada e paga o
+custo da detecção sempre; o BeatPerfect assume que a primeira audição de uma faixa não sai
+bit-perfect, porque precisa de 5 s tocando para aprender. Aqui a primeira audição já sai
+certa, e a segunda sai certa mais rápido.
+
+**Troca antes da faixa virar.** É o que a seção anterior descreve. O LosslessSwitcher
+documenta que "pode haver breves interrupções no áudio" durante a troca, e troca assim que
+possível depois que a faixa nova começou. Aqui o silêncio cai na cauda da faixa anterior e
+a nova começa intacta — medido, não presumido.
+
+**Profundidade de bits sem penalidade.** O LosslessSwitcher tem a opção, mas avisa que
+ligá-la "reduz a precisão da detecção, portanto não é recomendada". Aqui a profundidade vem
+exata do mesmo log e do ALAC do arquivo baixado, e o formato do barramento sobe para o mais
+profundo que o aparelho aceitar — o que nunca piora nada.
+
+**Lê o arquivo baixado direto.** Faixa baixada é um `.movpkg`, e o app abre a variante HLS
+e lê a taxa e a profundidade do próprio contêiner. Não depende do log nem de esperar.
+
+**Escolhe o dispositivo por regra.** Três regras (sua escolha, senão o DAC conectado mais
+recentemente, senão os alto-falantes), reagindo a conectar e desconectar. Os outros ou usam
+o dispositivo atual, ou deixam a escolha inteiramente com você.
+
+**Avisa do que anula tudo.** Volume interno do Music abaixo de 100% ou equalizador ligado
+destroem o resultado silenciosamente. O app checa e sinaliza no ícone da barra de menu.
+
+**Nada de assinatura nem de acesso de administrador.** O LosslessSwitcher pede acesso de
+administrador e não é sandboxed; o BeatPerfect é assinatura mensal.
+
+Em contrapartida, sendo honesto sobre a outra ponta da comparação: aqueles apps são
+mantidos e usados por muita gente, em hardware variado. Este foi testado numa máquina, com
+dois DACs, pelo autor — veja [Onde isto foi medido](#onde-isto-foi-medido).
+
 ## O que este app não é
 
 - **Não é modo exclusivo.** O Music toca pelo mixer do macOS, e nenhum app externo muda
