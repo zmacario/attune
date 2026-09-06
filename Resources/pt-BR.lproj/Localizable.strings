@@ -48,6 +48,7 @@
 "menu.deepestFormat" = "Usar a maior profundidade de bits";
 "menu.leaveAlone" = "Não mexer no dispositivo";
 "menu.matchRate" = "Seguir a taxa da faixa";
+"menu.prepareNext" = "Ajustar a taxa da próxima faixa antes";
 "menu.outputDevice" = "Dispositivo de saída";
 "menu.quit" = "Encerrar";
 "menu.reapply" = "Aplicar agora";

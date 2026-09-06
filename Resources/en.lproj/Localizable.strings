@@ -48,6 +48,7 @@
 "menu.deepestFormat" = "Use the deepest bit format";
 "menu.leaveAlone" = "Leave the device alone";
 "menu.matchRate" = "Match the track's sample rate";
+"menu.prepareNext" = "Set the next track's rate in advance";
 "menu.outputDevice" = "Output device";
 "menu.quit" = "Quit";
 "menu.reapply" = "Re-apply now";
