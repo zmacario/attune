@@ -88,7 +88,15 @@ final class Settings {
     /// Caller must hold `cacheLock`.
     private func cacheLocked() -> [String: String] {
         if let loadedCache { return loadedCache }
-        let stored = defaults.dictionary(forKey: "formatCache") as? [String: String] ?? [:]
+        var stored = defaults.dictionary(forKey: "formatCache") as? [String: String] ?? [:]
+        // Entries keyed by name and artist cannot be migrated — the text does not say which
+        // recording it meant. Dropped once, and every track relearns on its next play.
+        if defaults.integer(forKey: "formatCacheVersion") < 2 {
+            if !stored.isEmpty { Log.write("format cache: dropping \(stored.count) entries keyed by name") }
+            stored = [:]
+            defaults.set([String: String](), forKey: "formatCache")
+            defaults.set(2, forKey: "formatCacheVersion")
+        }
         loadedCache = stored
         return stored
     }
@@ -99,7 +107,31 @@ final class Settings {
         _ = cacheLocked()
     }
 
-    static func cacheKey(name: String, artist: String) -> String { "\(name)|\(artist)" }
+    /// Keyed by the track itself where possible.
+    ///
+    /// Name and artist do not identify a recording: a library can hold the download and the
+    /// stream of one song, or the album version and the single, under identical text and in
+    /// different formats — 37 such pairs in the library this was written against, one of
+    /// them already sharing a cache entry. Falls back to the text for anything Music will
+    /// not name, such as a catalogue track that was never added to the library.
+    static func cacheKey(id: String?, name: String, artist: String) -> String {
+        if let id, !id.isEmpty { return "id:\(id)" }
+        return "\(name)|\(artist)"
+    }
+
+    /// Music spells the same 64-bit id two ways: AppleScript hands out hex, the playerInfo
+    /// notification a signed decimal of the same bits. One spelling, so both paths agree.
+    static func trackID(fromNotification value: Any?) -> String? {
+        if let number = value as? NSNumber {
+            return String(format: "%016llX", UInt64(bitPattern: number.int64Value))
+        }
+        guard let text = (value as? String)?.trimmingCharacters(in: .whitespaces), !text.isEmpty else {
+            return nil
+        }
+        if let signed = Int64(text) { return String(format: "%016llX", UInt64(bitPattern: signed)) }
+        let hex = text.uppercased()
+        return hex.count == 16 && hex.allSatisfy(\.isHexDigit) ? hex : nil
+    }
 
     func cachedFormat(for key: String) -> TrackFormat? {
         cacheLock.lock()
@@ -113,10 +145,20 @@ final class Settings {
                            source: .cache)
     }
 
-    /// Only formats the player itself reported are worth remembering: caching a guess would
-    /// apply it instantly on every later play, which is worse than guessing once.
+    /// Only exact readings are worth remembering: caching a guess would apply it instantly
+    /// on every later play, which is worse than guessing once.
+    ///
+    /// The player is one. A plain audio file is another — it holds one format, read from
+    /// the container itself, with no variant to choose between. `.download` is not: a
+    /// `.movpkg` carries several HLS variants and reading it cannot tell which one Music
+    /// picked, which is where Atmos lives. `.metadata` and `.fallback` are guesses outright.
+    ///
+    /// Local files matter here because the player's log says nothing about them — measured,
+    /// not assumed — so without this a library of imported music never fills the cache, and
+    /// the pre-switch, which needs a cached format to prepare, never arms at all.
     func remember(_ format: TrackFormat, for key: String) {
-        guard !key.isEmpty, format.source == .player, format.sampleRate > 0 else { return }
+        guard !key.isEmpty, format.sampleRate > 0,
+              format.source == .player || format.source == .file else { return }
         let value = "\(Int(format.sampleRate))|\(format.bitDepth.map(String.init) ?? "")"
 
         // Read, decide and write back under one lock. Two steps would let a second writer

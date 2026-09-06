@@ -8,12 +8,14 @@ struct MusicTrack {
     var sampleRate: Int      // Music's own metadata; 0 when unknown
     var position: Double
     var duration: Double     // 0 when Music does not say
+    var persistentID: String?
 }
 
 /// The track Music will play after this one, when that is knowable.
 struct UpNext {
     let name: String
     let artist: String
+    let persistentID: String?
 }
 
 struct MusicHygiene {
@@ -118,12 +120,15 @@ enum MusicBridge {
             path: fields[4].isEmpty ? nil : fields[4],
             sampleRate: Int(fields[3]) ?? 0,
             position: real(fields[5]) ?? 0,
-            duration: fields.count > 8 ? (real(fields[8]) ?? 0) : 0)
+            duration: fields.count > 8 ? (real(fields[8]) ?? 0) : 0,
+            persistentID: fields.count > 12 && !fields[12].isEmpty ? fields[12] : nil)
 
         // Absent whenever Music cannot say what comes next — shuffle on, no playlist, or
         // the last track. The caller prepares nothing rather than preparing the wrong rate.
         let upNext = fields.count > 11 && !fields[10].isEmpty
-            ? UpNext(name: fields[10], artist: fields[11]) : nil
+            ? UpNext(name: fields[10], artist: fields[11],
+                     persistentID: fields.count > 13 && !fields[13].isEmpty ? fields[13] : nil)
+            : nil
 
         return (fields[0], track, hygiene, upNext)
     }

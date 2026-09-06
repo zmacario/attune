@@ -221,7 +221,8 @@ final class Engine {
     private func applyRememberedFormat(from info: [AnyHashable: Any]?) {
         guard settings.matchSampleRate,
               let name = info?["Name"] as? String else { return }
-        let key = Settings.cacheKey(name: name, artist: info?["Artist"] as? String ?? "")
+        let key = Settings.cacheKey(id: Settings.trackID(fromNotification: info?["PersistentID"]),
+                                    name: name, artist: info?["Artist"] as? String ?? "")
         guard key != lastCachedKey, let format = settings.cachedFormat(for: key) else { return }
         lastCachedKey = key
 
@@ -336,7 +337,9 @@ final class Engine {
     /// Notices when the track changed, and where its start was. `position` is what puts
     /// the start in the right place when the app launches into a track already playing.
     private func noteTrack(_ track: MusicTrack?) {
-        let key = track.map { "\($0.name)|\($0.artist)" } ?? "-"
+        let key = track.map {
+            Settings.cacheKey(id: $0.persistentID, name: $0.name, artist: $0.artist)
+        } ?? "-"
         guard key != trackKey else { return }
         trackKey = key
         preSwitchedFor = nil
@@ -402,7 +405,27 @@ final class Engine {
             }
         }
 
-        return TrackFormat.resolve(track: track, fallbackRate: settings.fallbackRate)
+        // What was learned before beats what would be guessed now. A cache entry is a
+        // reading the player itself made on an earlier play — `remember` stores nothing
+        // else — so falling straight through to the configured fallback threw a measurement
+        // away in favour of an invention. Seen doing exactly that: the cache had put the
+        // device on 48 kHz, the fallback pulled it to 44.1, and the player arrived two
+        // seconds later to put it back. Three changes where none were due.
+        //
+        // A plain file still wins over the cache, being read from the track playing now, so
+        // it also catches a file replaced since. A `.movpkg` does not: it can see which
+        // variants exist but not which one Music chose, and the cache was told.
+        let resolved = TrackFormat.resolve(track: track, fallbackRate: settings.fallbackRate)
+        if resolved?.source != .file, let key = trackKey,
+           let remembered = settings.cachedFormat(for: key) {
+            Log.write("no player report; using what was learned before: \(remembered.summary)")
+            return remembered
+        }
+        // Offered rather than decided here: `remember` keeps what is exact and drops the
+        // rest. Without this the file path never reached the cache at all, so a library the
+        // player says nothing about could not be prepared ahead.
+        if let resolved, let key = trackKey { settings.remember(resolved, for: key) }
+        return resolved
     }
 
     /// Prepares the next track's rate while this one is still playing, when everything
@@ -416,7 +439,7 @@ final class Engine {
         // 0.74 s of the tail instead of inserting silence, which is a worse trade.
         guard let upNext else { return }
 
-        let key = Settings.cacheKey(name: upNext.name, artist: upNext.artist)
+        let key = Settings.cacheKey(id: upNext.persistentID, name: upNext.name, artist: upNext.artist)
         guard let format = settings.cachedFormat(for: key) else {
             Log.write("pre-switch: \(upNext.name) never heard, nothing to prepare")
             return

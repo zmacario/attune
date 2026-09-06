@@ -135,13 +135,41 @@ Ele só age quando **tudo** é conhecido, e não faz nada quando falta qualquer 
 | condição | por quê |
 |---|---|
 | *Pausar durante a troca de taxa* ligado | é a pausa que faz isso não custar áudio |
-| modo aleatório desligado | com shuffle, a próxima por índice não é a que toca |
+| modo aleatório desligado | com shuffle, a próxima por índice não é a que toca ([por quê](#por-que-o-modo-aleatório-não-dá)) |
 | a próxima faixa é identificável | rádio e outras fontes não têm playlist |
 | o formato dela já está no cache | faixa nunca ouvida não tem o que antecipar |
 | sobra mais que 2,5 s | tarde demais para preparar |
 
 Se a faixa mudar antes da hora marcada — você pulou, ou o Music adiantou — a antecipação se
 recolhe sem fazer nada (`pre-switch: track already changed, standing down`).
+
+#### Por que o modo aleatório não dá
+
+O Music **não anuncia** a próxima faixa. Ele expõe a playlist e o índice da atual, e o app
+soma um — é dedução a partir da ordem da lista, não um aviso. Embaralhado, esse índice + 1
+continua existindo e respondendo; só não é o que vai tocar.
+
+A fila real, a do *A Seguir*, **não existe para scripts**. A terminologia do Music
+(`com.apple.Music.sdef`) não tem nenhuma menção a *up next*, e a lista de propriedades da
+aplicação é explícita sobre o que há:
+
+```
+current playlist    playlist     ← a lista, em ordem
+current track       track
+shuffle enabled     boolean      ← diz SE está embaralhado
+shuffle mode        eShM
+song repeat         eRpt
+```
+
+Ele informa **que** está embaralhado, nunca **o que** vem depois. Então isto não é uma
+pendência à espera de esforço: a informação não é exposta. Em modo aleatório o recurso fica
+inerte e a troca volta a acontecer no início da faixa nova — todo o resto do app segue igual.
+
+Pela mesma razão, a dedução segue a ordem **da lista**, não a de reprodução. Reordenar a
+visualização da playlist enquanto ela toca pode fazer `índice + 1` deixar de ser o que vem.
+Se isso acontecer, nada quebra: a faixa nova começa, o caminho comum detecta a taxa real e
+corrige — uma transição pior, com o buraco de sempre mais um silêncio extra na cauda
+anterior, e a seguinte já volta ao normal.
 
 Duas armadilhas custaram uma versão cada, e as duas estão no código como comentário:
 
@@ -421,12 +449,46 @@ app descrevendo uma faixa enquanto o player descreve outra, e nenhuma regra reco
 fontes amostradas em momentos diferentes. Um relatório novo faz o app reavaliar, mas só
 dentro dessa janela: depois dela, uma correção seria um corte no meio da música.
 
-Downloads não passam por aqui — o `.movpkg` é autoritativo e resolve na hora.
+**Downloads passam por aqui também.** O log é a única fonte que sabe qual variante o Music
+de fato escolheu — ler o `.movpkg` vê que existe uma variante Atmos, não que ela está
+tocando. O download não espera por isso: se o log ainda não respondeu, ele resolve do
+arquivo na hora e uma leitura posterior corrige dentro da janela de acomodação. Na prática o
+log costuma chegar primeiro — numa sessão de três horas, as 13 resoluções saíram todas
+`via player`.
 
 Se o log não responder, o app desliga a leitura, registra o motivo e volta ao comportamento
 anterior. A verificação é feita uma vez, com uma pergunta que precisa ter resposta **e** ser
 sobre algo recente: perguntar se "qualquer entrada" pode ser lida responde sim com as
 entradas do próprio app.
+
+#### Se o log parar de funcionar
+
+A mensagem lida não é API pública. Se ela mudar de forma num update do macOS, o app se
+desliga sozinho — e aí importa se a faixa está baixada:
+
+| | faixa baixada | streaming |
+|---|---|---|
+| taxa e profundidade | **exatas, lidas do arquivo** | palpite (o fallback, 44,1 kHz por padrão) |
+| bit-perfect | mantido | perdido em tudo que não for 44,1 |
+| espera | nenhuma | nenhuma, mas o valor é chute |
+
+O `.movpkg` é lido pelo contêiner — taxa no `mdhd`, profundidade no cookie do ALAC. Formato
+público, sem depender de interno da Apple. É o que o `--inspect` mostra:
+
+```
+movpkg with 1 variant(s); Music lossless=true
+  3410074 bps  alac 24-bit 96 kHz
+  → would play: alac 24-bit 96 kHz
+```
+
+Uma consequência menos óbvia: o cache só guarda o que o **player** reportou, de propósito
+(guardar um chute seria pior que chutar uma vez). Sem o log, portanto, nada novo entra no
+cache — faixas baixadas continuam tocando certas, mas a antecipação deixa de armar para
+faixas ainda não conhecidas. As já memorizadas seguem valendo.
+
+Ter a lista baixada não melhora a qualidade: é o mesmo arquivo dos dois jeitos, e com o log
+funcionando os dois caminhos chegam ao mesmo resultado. O que ela dá é **independência de
+uma fonte não documentada**.
 
 ## Ajustes que você precisa fazer à mão
 
@@ -441,6 +503,56 @@ Em **Music → Ajustes → Reprodução**:
 
 O item *Check bit-perfect setup…* do menu roda a checagem e mostra tudo que dá para verificar.
 
+## Como ele se compara
+
+Este app não inventou o problema nem a solução. Vale registrar o que já existe, e o que
+aqui é diferente — comparação feita a partir da documentação pública de cada um, não de tê-los
+rodado lado a lado.
+
+| | como resolve | modelo |
+|---|---|---|
+| [LosslessSwitcher](https://github.com/vincentneo/LosslessSwitcher) | lê o log do Apple Music via OSLog | grátis, código aberto |
+| [BeatPerfect](https://beatperfect.strux.pro/) | aprende o formato ouvindo, aplica na próxima vez | assinatura, US$ 2,90/mês |
+| DACorum, MyAudioFormat | você troca a taxa à mão, mais rápido que no Audio MIDI | pagos, na App Store |
+
+O **LosslessSwitcher** chegou primeiro, em 2022, e a técnica central do Attune — ler o que o
+CoreMedia reporta — é a mesma ideia. Não há novidade nisso.
+
+O que o Attune faz de diferente:
+
+**Usa as duas técnicas juntas.** O log resolve a primeira audição; o cache resolve as
+seguintes em 1 ms, sem perguntar nada ao Music. O LosslessSwitcher não guarda nada e paga o
+custo da detecção sempre; o BeatPerfect assume que a primeira audição de uma faixa não sai
+bit-perfect, porque precisa de 5 s tocando para aprender. Aqui a primeira audição já sai
+certa, e a segunda sai certa mais rápido.
+
+**Troca antes da faixa virar.** É o que a seção anterior descreve. O LosslessSwitcher
+documenta que "pode haver breves interrupções no áudio" durante a troca, e troca assim que
+possível depois que a faixa nova começou. Aqui o silêncio cai na cauda da faixa anterior e
+a nova começa intacta — medido, não presumido.
+
+**Profundidade de bits sem penalidade.** O LosslessSwitcher tem a opção, mas avisa que
+ligá-la "reduz a precisão da detecção, portanto não é recomendada". Aqui a profundidade vem
+exata do mesmo log e do ALAC do arquivo baixado, e o formato do barramento sobe para o mais
+profundo que o aparelho aceitar — o que nunca piora nada.
+
+**Lê o arquivo baixado direto.** Faixa baixada é um `.movpkg`, e o app abre a variante HLS
+e lê a taxa e a profundidade do próprio contêiner. Não depende do log nem de esperar.
+
+**Escolhe o dispositivo por regra.** Três regras (sua escolha, senão o DAC conectado mais
+recentemente, senão os alto-falantes), reagindo a conectar e desconectar. Os outros ou usam
+o dispositivo atual, ou deixam a escolha inteiramente com você.
+
+**Avisa do que anula tudo.** Volume interno do Music abaixo de 100% ou equalizador ligado
+destroem o resultado silenciosamente. O app checa e sinaliza no ícone da barra de menu.
+
+**Nada de assinatura nem de acesso de administrador.** O LosslessSwitcher pede acesso de
+administrador e não é sandboxed; o BeatPerfect é assinatura mensal.
+
+Em contrapartida, sendo honesto sobre a outra ponta da comparação: aqueles apps são
+mantidos e usados por muita gente, em hardware variado. Este foi testado numa máquina, com
+dois DACs, pelo autor — veja [Onde isto foi medido](#onde-isto-foi-medido).
+
 ## O que este app não é
 
 - **Não é modo exclusivo.** O Music toca pelo mixer do macOS, e nenhum app externo muda
@@ -452,6 +564,69 @@ O item *Check bit-perfect setup…* do menu roda a checagem e mostra tudo que d�
   48 e 96 kHz, mas a mensagem que o app lê não é API pública. Se ela mudar de forma numa
   atualização do macOS, o streaming volta ao fallback — sem quebrar mais nada.
 - **Sem DSD.** Muitos DACs aceitam DSD por USB, mas o Music nunca envia DSD.
+
+## Consumo
+
+Medido com o app ligado e o Music tocando o tempo todo, no ambiente descrito em
+[Onde isto foi medido](#onde-isto-foi-medido):
+
+| | |
+|---|---|
+| memória | **16,7 MB** (pico 17,1 MB) |
+| CPU em repouso | **0,07–0,08%** |
+| CPU desde a partida | 0,50% |
+| threads | 5 a 9 |
+
+O consumo em repouso vem de duas medições independentes que chegaram ao mesmo lugar: uma
+janela cronometrada de 100 s (0,080%) e a diferença dos contadores acumulados ao longo de
+157 s (0,070%). Os 0,50% desde a partida são maiores porque incluem a inicialização, a
+sondagem do log do player e várias trocas de faixa em treze minutos — não é o número do dia
+a dia.
+
+O app dorme entre eventos. Ele acorda com a notificação do Music (uma por faixa), na
+verificação de 15 s — com folga generosa, justamente para o sistema agrupá-la com outros
+despertares — e quando um dispositivo entra ou sai.
+
+A memória é o *physical footprint*, que é como a Apple contabiliza um processo; o `ps`
+mostra ~35 MB de RSS, mas isso conta páginas compartilhadas de frameworks do sistema que
+existiriam de qualquer forma. O cache de formatos tem peso desprezível nisso: 47 faixas
+ocupam ~4 KB, e mesmo cheio, com 50 000, seriam ~4 MB.
+
+A contagem de threads varia porque quase todas são threads de trabalho que o libdispatch
+cria e recolhe sozinho — o app declara só duas filas próprias (`attune.engine` e
+`attune.music`) mais a principal, e o tempo de CPU fica quase todo nesta última.
+
+### Onde isto foi medido
+
+Todos os números deste README — consumo, os 730 ms de relock do DAC, os tempos de Apple
+Event, a latência do cache — vieram desta máquina. Hardware diferente dá números
+diferentes, sobretudo o relock, que é característica do DAC.
+
+| | |
+|---|---|
+| máquina | MacBook Pro (MacBookPro15,1), Intel Core i9 8 núcleos a 2,4 GHz, 32 GB |
+| sistema | macOS 15.7.9 (24G830), Darwin 24.6.0 x86_64 |
+| Music | 1.5.6 |
+| compilador | Swift 6.1.2 (swiftlang-6.1.2.1.2, clang-1700.0.13.5), alvo x86_64-apple-macosx15.0 |
+| ferramentas | Command Line Tools, sem Xcode |
+| app | Attune 1.3 (4), assinado com certificado próprio |
+
+Saídas presentes durante os testes:
+
+| dispositivo | transporte | taxas | bits |
+|---|---|---|---|
+| **Topping DX3 Pro+** | USB | 44,1 – 768 kHz | 24, 32 |
+| **HiBy FC4** | USB | 32 – 768 kHz | 16, 24, 32 |
+| MacBook Pro Speakers | interno | 44,1 – 96 kHz | 32 |
+| DP1 | DisplayPort | 32 – 48 kHz | 16, 20, 24 |
+
+O **DX3 Pro+** foi o alvo na maior parte dos testes, incluindo as 30 trocas de taxa que
+estabeleceram os 724–740 ms de relock e as transições antecipadas. O **HiBy FC4** serviu
+para verificar a escolha por ordem de conexão com dois DACs presentes. O DisplayPort está
+na lista de propósito: ele **não** é adotado como DAC, e serviu para confirmar isso.
+
+As faixas de teste vieram da playlist *Favourite Songs* no Apple Music, com material em
+44,1 kHz (16 e 24 bits), 48 kHz e 96 kHz/24 bits, baixado e em streaming.
 
 ## Volume
 
