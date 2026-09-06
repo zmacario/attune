@@ -453,6 +453,36 @@ O item *Check bit-perfect setup…* do menu roda a checagem e mostra tudo que d�
   atualização do macOS, o streaming volta ao fallback — sem quebrar mais nada.
 - **Sem DSD.** Muitos DACs aceitam DSD por USB, mas o Music nunca envia DSD.
 
+## Consumo
+
+Medido num MacBook Pro Intel, com o app ligado e o Music tocando o tempo todo:
+
+| | |
+|---|---|
+| memória | **16,7 MB** (pico 17,1 MB) |
+| CPU em repouso | **0,07–0,08%** |
+| CPU desde a partida | 0,50% |
+| threads | 5 a 9 |
+
+O consumo em repouso vem de duas medições independentes que chegaram ao mesmo lugar: uma
+janela cronometrada de 100 s (0,080%) e a diferença dos contadores acumulados ao longo de
+157 s (0,070%). Os 0,50% desde a partida são maiores porque incluem a inicialização, a
+sondagem do log do player e várias trocas de faixa em treze minutos — não é o número do dia
+a dia.
+
+O app dorme entre eventos. Ele acorda com a notificação do Music (uma por faixa), na
+verificação de 15 s — com folga generosa, justamente para o sistema agrupá-la com outros
+despertares — e quando um dispositivo entra ou sai.
+
+A memória é o *physical footprint*, que é como a Apple contabiliza um processo; o `ps`
+mostra ~35 MB de RSS, mas isso conta páginas compartilhadas de frameworks do sistema que
+existiriam de qualquer forma. O cache de formatos tem peso desprezível nisso: 47 faixas
+ocupam ~4 KB, e mesmo cheio, com 50 000, seriam ~4 MB.
+
+A contagem de threads varia porque quase todas são threads de trabalho que o libdispatch
+cria e recolhe sozinho — o app declara só duas filas próprias (`attune.engine` e
+`attune.music`) mais a principal, e o tempo de CPU fica quase todo nesta última.
+
 ## Volume
 
 Deixe o volume interno do Music em 100% — ele atenua em software, antes do áudio sair do
