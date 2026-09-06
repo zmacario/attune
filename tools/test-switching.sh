@@ -48,10 +48,15 @@ sleep_for 3
 SECOND=$(last_report)
 
 TRACK=$(osascript -e 'tell application id "com.apple.Music" to get name of current track' 2>/dev/null)
-ACTUAL=$("$BIN" --list-devices | grep -A2 "DX3 Pro+" | grep "now:" | grep -oE "[0-9.]+ kHz" | head -1)
+# Ask the app which device it is targeting rather than naming one: the target follows the
+# three rules and may well not be the DAC the tester had in mind. Checking a hard-coded
+# device measured one the app was not steering, and reported that as a failure.
+TARGET=$("$BIN" --resolve | sed -n 's/^Target: //p')
+ACTUAL=$("$BIN" --list-devices | grep -A3 "^$TARGET \[" | grep "now:" | grep -oE "[0-9.]+ kHz" | head -1)
 EXPECTED=$(echo "$SECOND" | grep -oE "[0-9]+")
 
 echo
+echo "target device:    ${TARGET:-?}"
 echo "track:            ${TRACK:-?}"
 echo "player reported:  ${EXPECTED:-?} Hz"
 echo "DAC ended at:     ${ACTUAL:-?}"

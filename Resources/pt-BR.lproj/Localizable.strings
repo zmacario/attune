@@ -73,3 +73,4 @@
 "menu.dacs" = "DACs";
 "menu.otherOutputs" = "Outras saídas";
 "source.player" = "player";
+"source.cache" = "lembrado";

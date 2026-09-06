@@ -258,6 +258,7 @@ Em ordem de preferência:
 
 | Origem | Precisão | Quando |
 |---|---|---|
+| Lembrado | exata | Faixa já ouvida antes — aplicada antes de perguntar nada |
 | Log do player | exata | **Todas** as faixas — veja abaixo |
 | `.movpkg` | exata | Faixas do Apple Music **baixadas** |
 | Arquivo de áudio | exata | AIFF, WAV, ALAC, MP3… na sua biblioteca |
@@ -286,6 +287,21 @@ Para ver o que tem dentro de uma faixa:
 ```bash
 "build/BitPerfect DX.app/Contents/MacOS/BitPerfectDX" --inspect ~/Music/Music/Media.localized/...
 ```
+
+### Lembrando o que já foi ouvido
+
+Onde o tempo vai, medido: resolver custa **3 ms**; os outros ~330 são o *debounce* de um
+quarto de segundo e o Apple Event que pergunta ao Music qual faixa está tocando. Um cache
+consultado depois disso não economizaria nada.
+
+Mas a notificação do Music **já traz o nome da faixa**. Então uma faixa ouvida antes é
+aplicada direto dela, sem perguntar nada — medido em **1 ms** depois da notificação, contra
+~330. É essa a diferença entre a pausa começar dentro da música ou na borda dela.
+
+Só formatos que o próprio player reportou são guardados. Guardar um chute faria com que ele
+fosse aplicado instantaneamente em toda execução seguinte, o que é pior que chutar uma vez.
+O caminho normal continua rodando e continua tendo a última palavra: se o player discordar,
+corrige dentro da janela de acomodação.
 
 ### Lendo o log do player
 
@@ -462,7 +478,8 @@ tools/test-switching.sh 8 1.2      # 8 pulos, 1,2 s entre eles
 ```
 
 Ele reinstala, abre o app, pula faixas pelo Music e confere se o DAC terminou na taxa que o
-player reportou por último. A verificação é sobre o **estado final**, não sobre cada leitura
+player reportou por último — perguntando ao app **qual dispositivo ele está mirando**, em vez
+de presumir um. Presumir foi o terceiro falso negativo que essa ferramenta produziu. A verificação é sobre o **estado final**, não sobre cada leitura
 intermediária: pular mais rápido do que o player reporta produz desencontros transitórios
 que são esperados, enquanto a taxa em que você fica ouvindo nunca pode estar errada.
 
