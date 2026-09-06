@@ -16,6 +16,17 @@ final class ToggleMenuItemView: NSView {
 
     private static var font: NSFont { .menuFont(ofSize: 0) }
 
+    /// Arabic and Hebrew put the checkmark on the right and the text to its left. Every
+    /// position here is measured from the leading edge, so mirroring is one reflection
+    /// rather than a second set of constants.
+    private static var isRTL: Bool {
+        NSApp.userInterfaceLayoutDirection == .rightToLeft
+    }
+
+    private static func leading(_ x: CGFloat, width: CGFloat, of itemWidth: CGFloat) -> CGFloat {
+        isRTL ? itemWidth - x - width : x
+    }
+
     /// Menus size view-backed items independently, which leaves the rows ragged. Give
     /// every toggle the width of the widest one instead.
     static func width(for titles: [String]) -> CGFloat {
@@ -54,7 +65,7 @@ final class ToggleMenuItemView: NSView {
         checkmark.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)?
             .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
         let checkHeight = checkmark.image?.size.height ?? 13
-        checkmark.frame = NSRect(x: Self.checkmarkX,
+        checkmark.frame = NSRect(x: Self.leading(Self.checkmarkX, width: 13, of: width),
                                  y: ((Self.rowHeight - checkHeight) / 2).rounded(),
                                  width: 13, height: checkHeight)
         checkmark.imageScaling = .scaleNone
@@ -66,9 +77,11 @@ final class ToggleMenuItemView: NSView {
         // Given the row's full height, NSTextField does not centre a single line inside
         // it — the text rides high against the highlight. Measure it and centre by hand.
         label.sizeToFit()
-        label.frame = NSRect(x: Self.titleX,
+        label.alignment = Self.isRTL ? .right : .left
+        let labelWidth = width - Self.titleX - Self.trailingPadding
+        label.frame = NSRect(x: Self.leading(Self.titleX, width: labelWidth, of: width),
                              y: ((Self.rowHeight - label.frame.height) / 2).rounded(),
-                             width: width - Self.titleX - Self.trailingPadding,
+                             width: labelWidth,
                              height: label.frame.height)
         label.autoresizingMask = [.width]
         addSubview(label)

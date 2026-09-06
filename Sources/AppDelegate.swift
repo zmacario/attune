@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func render(_ status: EngineStatus) {
         guard let button = statusItem.button else { return }
         button.title = status.deviceRate > 0
-            ? " " + rateLabel(status.deviceRate).replacingOccurrences(of: " kHz", with: "k")
+            ? " " + rateLabel(status.deviceRate, forDisplay: true).replacingOccurrences(of: " kHz", with: "k")
             : ""
         button.image = warning(in: status) == nil ? Self.normalIcon : Self.warningIcon
         // Updates the header in place rather than rebuilding: a rebuild tore out the row
@@ -112,7 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !status.targetConnected {
             device = status.targetName          // already reads as a sentence of its own
         } else if status.deviceRate > 0 {
-            device = "\(status.targetName) · \(rateLabel(status.deviceRate))"
+            device = "\(status.targetName) · \(rateLabel(status.deviceRate, forDisplay: true))"
         } else {
             device = status.targetName
         }
@@ -121,7 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let title = status.trackTitle {
             track = (status.playing ? "▶ " : "⏸ ") + title
             if let detected = status.detected {
-                track += " · " + localized("menu.trackFormat", detected.summary, detected.source.label)
+                track += " · " + localized("menu.trackFormat", detected.displaySummary, detected.source.label)
             }
         }
 
@@ -266,9 +266,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let sub = NSMenu()
         let options: [(String, Double)] = [
             (localized("menu.leaveAlone"), 0),
-            (localized("menu.assumeRate", rateLabel(44100)), 44100),
-            (localized("menu.assumeRate", rateLabel(48000)), 48000),
-            (localized("menu.assumeRate", rateLabel(96000)), 96000),
+            (localized("menu.assumeRate", rateLabel(44100, forDisplay: true)), 44100),
+            (localized("menu.assumeRate", rateLabel(48000, forDisplay: true)), 48000),
+            (localized("menu.assumeRate", rateLabel(96000, forDisplay: true)), 96000),
         ]
         for (title, rate) in options {
             let item = NSMenuItem(title: title, action: #selector(pickFallback(_:)), keyEquivalent: "")
@@ -468,11 +468,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             lines.append(localized("menu.noDAC"))
         }
         if let device = settings.resolveTargetDevice() {
-            lines.append(localized("check.output", device.name, rateLabel(device.nominalSampleRate)))
+            lines.append(localized("check.output", device.name, rateLabel(device.nominalSampleRate, forDisplay: true)))
             if let wire = device.currentPhysicalFormat { lines.append(localized("check.wireFormat", wire.describedBriefly)) }
             if let detected = status.detected {
                 let matched = abs(device.nominalSampleRate - detected.sampleRate) < 1
-                lines.append(localized(matched ? "check.rateMatches" : "check.rateDiffers", detected.summary))
+                lines.append(localized(matched ? "check.rateMatches" : "check.rateDiffers", detected.displaySummary))
             }
             lines.append(localized(device.hasHardwareVolumeControl ? "check.volumeHardware" : "check.volumeNone"))
         }

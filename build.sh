@@ -40,7 +40,7 @@ done
 # Ad-hoc (`--sign -`) produces a designated requirement of `cdhash H"..."` — the hash of
 # the binary itself — so every rebuild is a new identity to macOS and the Media & Apple
 # Music prompt comes back. A self-signed certificate anchors the requirement to the
-# certificate instead, and rebuilds keep what you granted. See README → Permissões.
+# certificate instead, and rebuilds keep what you granted. See README → Permissions.
 IDENTITY="${CODESIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null \
     | sed -n 's/.*"\(Attune Local\)"/\1/p' | head -1)}"
 

@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "Attune, Music से पूछता है कि कौन-सा ट्रैक चल रहा है, ताकि आपके DAC को उसी सैंपल दर पर सेट किया जा सके।";
+"NSAppleMusicUsageDescription" = "Attune आपके डाउनलोड किए गए Apple Music ट्रैक की सैंपल दर पढ़ता है, ताकि आपके DAC को उससे मिलाया जा सके।";

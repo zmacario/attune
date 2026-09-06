@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "Attune demande à Musique quel morceau est en lecture afin de régler votre DAC sur la fréquence de ce morceau.";
+"NSAppleMusicUsageDescription" = "Attune lit la fréquence d'échantillonnage de vos morceaux Apple Music téléchargés afin d'y régler votre DAC.";

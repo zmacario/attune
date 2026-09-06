@@ -684,9 +684,35 @@ device's own attenuator, and that one you can use freely. The menu's
 
 ## Languages
 
-The interface follows the system language. There is English and Portuguese today
-(`Resources/en.lproj`, `Resources/pt-BR.lproj`); macOS picks on its own and falls back to
-English when there is no match.
+The interface follows the system language, and falls back to English when there is no
+match. Seven are shipped — English plus the five most spoken languages in the world by
+total speakers, plus Portuguese:
+
+| | | |
+|---|---|---|
+| `en` | English | |
+| `zh-Hans` | Chinese (Simplified) | Mandarin, ~1.18 B speakers |
+| `hi` | Hindi | ~609 M |
+| `es` | Spanish | ~560 M |
+| `ar` | Arabic | ~422 M, right to left |
+| `fr` | French | ~310 M |
+| `pt-BR` | Portuguese (Brazil) | the author's |
+
+**These translations have not been reviewed by native speakers.** They are careful, and the
+build checks that every key exists in every language and that the format specifiers match —
+a `%ld` lost in translation would make `String(format:)` read an argument that was never
+passed — but a wording that reads oddly to a native ear would pass both checks. Corrections
+are welcome.
+
+**Arabic reads right to left**, and the menu rows are custom views with positions measured
+by hand, so they mirror explicitly: the checkmark moves to the trailing edge, the label
+aligns and reverses with it, and the scrolling header starts flush right and travels the
+other way. There is no automatic mirroring to inherit — a view-backed menu item draws
+itself.
+
+Numbers follow the reader too: a rate shows as `44,1 kHz` where that is the convention and
+`44.1 kHz` where it is not. Log lines deliberately do not, so a search for `44.1 kHz` keeps
+finding them.
 
 Only the interface is translated. Log messages stay in English deliberately — they exist for
 diagnosis, and a translated log is harder to search and harder to paste into a bug report.

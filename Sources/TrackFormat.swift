@@ -29,8 +29,14 @@ struct TrackFormat: Equatable {
     var bitDepth: Int?
     var source: Source
 
-    var summary: String {
-        let rate = rateLabel(sampleRate)
+    /// For the log: the decimal separator stays a dot, so entries remain searchable.
+    var summary: String { summary(forDisplay: false) }
+
+    /// For the menu, where the reader's locale is what matters.
+    var displaySummary: String { summary(forDisplay: true) }
+
+    private func summary(forDisplay: Bool) -> String {
+        let rate = rateLabel(sampleRate, forDisplay: forDisplay)
         guard let bitDepth, bitDepth > 0 else { return rate }
         return "\(bitDepth)-bit / \(rate)"
     }

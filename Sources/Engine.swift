@@ -547,7 +547,7 @@ final class Engine {
         let supported = device.supportedSampleRates
         Log.write("applyFormat: want \(rateLabel(format.sampleRate)), device supports \(supported.map { rateLabel($0) }.joined(separator: "/"))")
         guard let rate = supported.first(where: { abs($0 - format.sampleRate) < 1 }) else {
-            status.problem = localized("engine.rateUnsupported", device.name, rateLabel(format.sampleRate))
+            status.problem = localized("engine.rateUnsupported", device.name, rateLabel(format.sampleRate, forDisplay: true))
             return
         }
         guard abs(device.nominalSampleRate - rate) >= 1 else {
@@ -604,7 +604,7 @@ final class Engine {
             suppressUntil = Date().addingTimeInterval(1.0)
         }
 
-        if !ok { status.problem = localized("engine.setRateFailed", rateLabel(rate)) }
+        if !ok { status.problem = localized("engine.setRateFailed", rateLabel(rate, forDisplay: true)) }
     }
 
     /// Nothing to act on. Not a fault: listening through the built-in speakers or a
