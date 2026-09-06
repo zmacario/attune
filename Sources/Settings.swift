@@ -58,6 +58,38 @@ final class Settings {
     /// Enable with `defaults write com.macario.bitperfectdx measureContinuity -bool true`.
     var measureContinuity: Bool { bool("measureContinuity", default: false) }
 
+    /// Formats already learned, keyed by track.
+    ///
+    /// Worth having only because of where the time goes: resolving takes 3 ms, while the
+    /// quarter-second debounce and the Apple Event that asks Music what is playing take the
+    /// rest. The notification already carries the track's name, so a track heard before can
+    /// be applied without asking Music anything at all.
+    private var formatCache: [String: String] {
+        get { defaults.dictionary(forKey: "formatCache") as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: "formatCache") }
+    }
+
+    static func cacheKey(name: String, artist: String) -> String { "\(name)|\(artist)" }
+
+    func cachedFormat(for key: String) -> TrackFormat? {
+        guard let raw = formatCache[key] else { return nil }
+        let parts = raw.split(separator: "|", omittingEmptySubsequences: false)
+        guard let rate = parts.first.flatMap({ Double($0) }), rate > 0 else { return nil }
+        return TrackFormat(sampleRate: rate,
+                           bitDepth: parts.count > 1 ? Int(parts[1]) : nil,
+                           source: .cache)
+    }
+
+    /// Only formats the player itself reported are worth remembering: caching a guess would
+    /// apply it instantly on every later play, which is worse than guessing once.
+    func remember(_ format: TrackFormat, for key: String) {
+        guard !key.isEmpty, format.source == .player, format.sampleRate > 0 else { return }
+        var cache = formatCache
+        if cache.count > 4000 { cache.removeAll() }     // crude bound; these are cheap to relearn
+        cache[key] = "\(Int(format.sampleRate))|\(format.bitDepth.map(String.init) ?? "")"
+        formatCache = cache
+    }
+
     /// Remembered alongside the UID so an absent device can still be named in the menu —
     /// a device that is not connected cannot be looked up.
     var targetDeviceName: String? {

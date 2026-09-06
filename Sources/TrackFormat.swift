@@ -4,6 +4,7 @@ import AudioToolbox
 /// The native format of the track Music is playing, and where we learned it.
 struct TrackFormat: Equatable {
     enum Source: String {
+        case cache     = "remembered"   // learned from the player on an earlier play
         case player    = "player"      // what CoreMedia actually decoded — the only
                                        // source for a stream, and the most authoritative
         case file      = "file"        // a plain audio file, read off disk — exact
@@ -14,6 +15,7 @@ struct TrackFormat: Equatable {
         /// `rawValue` stays English, because the log is a diagnostic; this is the menu's.
         var label: String {
             switch self {
+            case .cache:    return localized("source.cache")
             case .player:   return localized("source.player")
             case .file:     return localized("source.file")
             case .download: return localized("source.download")

@@ -49,6 +49,7 @@ final class Engine {
     /// same item belongs to that track, not this one — timing alone could not tell them
     /// apart, and skipping quickly made neighbouring tracks swap formats.
     private var lastPlayerItem: String?
+    private var lastCachedKey: String?
 
     /// What the player told us about the track being played now, if anything.
     ///
@@ -174,9 +175,36 @@ final class Engine {
         let state = note.userInfo?["Player State"] as? String
         Log.write("notification: \(note.name.rawValue) state=\(state ?? "nil") keys=\(note.userInfo?.keys.map { "\($0)" }.sorted().joined(separator: ",") ?? "-")")
         if state == "Playing" || state == nil {
+            applyRememberedFormat(from: note.userInfo)
             schedule(after: 0.25)   // Music fires a burst on track change; take the last one
         } else {
             handleStopped()
+        }
+    }
+
+    /// Applies a format learned on an earlier play, straight from the notification.
+    ///
+    /// Everything else waits a quarter second for the burst of notifications to settle and
+    /// then spends an Apple Event asking Music what is playing. The notification already
+    /// says, so a track heard before can be set before either of those — which is the whole
+    /// difference between the pause landing inside the song and at its edge.
+    ///
+    /// The ordinary path still runs and still has the last word: if the player reports
+    /// something else, it corrects within the settling window.
+    private func applyRememberedFormat(from info: [AnyHashable: Any]?) {
+        guard settings.matchSampleRate,
+              let name = info?["Name"] as? String else { return }
+        let key = Settings.cacheKey(name: name, artist: info?["Artist"] as? String ?? "")
+        guard key != lastCachedKey, let format = settings.cachedFormat(for: key) else { return }
+        lastCachedKey = key
+
+        work.async { [weak self] in
+            guard let self, Date() >= self.suppressUntil,
+                  let device = self.settings.resolveTargetDevice() else { return }
+            guard abs(device.nominalSampleRate - format.sampleRate) >= 1 else { return }
+            Log.write("remembered \(format.summary) for \(name); applying before asking Music")
+            var status = self.status
+            self.applyFormat(format, to: device, into: &status)
         }
     }
 
@@ -316,6 +344,7 @@ final class Engine {
                                          bitDepth: reported.bitDepth,
                                          source: .player)
                 playerFormatForTrack = format
+                settings.remember(format, for: trackKey ?? "")
                 return format
             }
             // A streamed track has nothing else to go on, so it is worth waiting. A local
