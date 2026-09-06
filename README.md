@@ -719,6 +719,25 @@ Numbers follow the reader too: a rate shows as `44,1 kHz` where that is the conv
 `44.1 kHz` where it is not. Log lines deliberately do not, so a search for `44.1 kHz` keeps
 finding them.
 
+**The cache is not affected by any of this**, and that is worth knowing before touching it.
+An entry is text — `96000|24` under a key like `id:FD9BD6493A459860` — and everything that
+produces or parses it is locale-independent by design: Swift's string interpolation of an
+`Int` always writes ASCII digits with no grouping separator, `Double(String)` always expects
+a dot, and a hexadecimal key has no decimal separator to disagree about. So a German never
+writes `96.000`, an Egyptian never writes `٩٦٠٠٠`, and a cache filled in one language reads
+back identically in another. Changing the app's language invalidates nothing.
+
+That is a promise worth pinning rather than assuming, since `String(format:)` in the same
+file did produce a decimal point where a comma belonged:
+
+```bash
+tools/test-locale-safety.sh
+```
+
+It round-trips one entry through eight locales and compares the bytes — Turkish for its
+dotless i, Arabic and Hindi for their own digit shapes, German and Russian for the decimal
+comma.
+
 Only the interface is translated. Log messages stay in English deliberately — they exist for
 diagnosis, and a translated log is harder to search and harder to paste into a bug report.
 
@@ -853,6 +872,7 @@ Shows the current rate, the wire format, and everything each output accepts. You
 | `tools/make-icon.swift` | Draws the icon; `make-icon.sh` packages it with `iconutil` |
 | `tools/check-localization.py` | Fails the build on a missing translation |
 | `tools/test-switching.sh` | The full verification cycle: reinstall, skip tracks, check the DAC |
+| `tools/test-locale-safety.sh` | Round-trips a cache entry through eight locales and compares the bytes |
 | `tools/create-signing-identity.sh` | Creates the certificate that preserves the permissions |
 
 Two things worth knowing about the build:

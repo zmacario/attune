@@ -84,6 +84,7 @@ enum MusicBridge {
         Double(text.replacingOccurrences(of: ",", with: "."))
     }
 
+    @discardableResult
     private static func run(_ source: String) throws -> String {
         guard isRunning else { throw BridgeError.notRunning }
         return try queue.sync {
