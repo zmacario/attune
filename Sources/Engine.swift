@@ -405,7 +405,23 @@ final class Engine {
             }
         }
 
-        return TrackFormat.resolve(track: track, fallbackRate: settings.fallbackRate)
+        // What was learned before beats what would be guessed now. A cache entry is a
+        // reading the player itself made on an earlier play — `remember` stores nothing
+        // else — so falling straight through to the configured fallback threw a measurement
+        // away in favour of an invention. Seen doing exactly that: the cache had put the
+        // device on 48 kHz, the fallback pulled it to 44.1, and the player arrived two
+        // seconds later to put it back. Three changes where none were due.
+        //
+        // A plain file still wins over the cache, being read from the track playing now, so
+        // it also catches a file replaced since. A `.movpkg` does not: it can see which
+        // variants exist but not which one Music chose, and the cache was told.
+        let resolved = TrackFormat.resolve(track: track, fallbackRate: settings.fallbackRate)
+        if resolved?.source != .file, let key = trackKey,
+           let remembered = settings.cachedFormat(for: key) {
+            Log.write("no player report; using what was learned before: \(remembered.summary)")
+            return remembered
+        }
+        return resolved
     }
 
     /// Prepares the next track's rate while this one is still playing, when everything
