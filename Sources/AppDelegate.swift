@@ -15,6 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         refreshLoginItemState()
         Engine.shared.onStatusChange = { [weak self] status in self?.render(status) }
+        // Rebuild the device list when the devices change, not only when the submenu is
+        // opened: a DAC unplugged with the menu already open should leave the list at once.
+        Engine.shared.onDevicesChanged = { [weak self] in self?.populateDeviceMenu() }
         Engine.shared.start()
     }
 
@@ -46,6 +49,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Menu
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // A submenu is rebuilt on its own, when it opens. The main menu deliberately is
+        // not rebuilt while open — that would tear out the row under the pointer — so a
+        // device plugged in meanwhile would otherwise not show until the menu was closed
+        // and opened again.
+        if menu === deviceSubmenu {
+            populateDeviceMenu()
+            return
+        }
+
         Engine.shared.refreshStatus()
         refreshLoginItemState()
         rebuild()
@@ -54,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Held so the header can be refreshed without rebuilding the menu around it.
     private var headerViews: [ScrollingLabelMenuItemView] = []
     private weak var checklistItem: NSMenuItem?
+    private let deviceSubmenu = NSMenu()
 
     /// The menu bar icon, in its normal and warning forms.
     ///
@@ -207,7 +220,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func deviceMenu() -> NSMenuItem {
         let parent = NSMenuItem(title: localized("menu.outputDevice"), action: nil, keyEquivalent: "")
-        let sub = NSMenu()
+        deviceSubmenu.delegate = self
+        populateDeviceMenu()
+        parent.submenu = deviceSubmenu
+        return parent
+    }
+
+    private func populateDeviceMenu() {
+        let sub = deviceSubmenu
+        sub.removeAllItems()
+        Log.write("device menu rebuilt")
 
         // The tick marks the device actually in play, not the saved preference — the two
         // differ whenever the preferred one is unplugged and another has taken over, and
@@ -235,8 +257,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         addSection(localized("menu.dacs"), dacs)
         addSection(localized("menu.otherOutputs"), others)
-        parent.submenu = sub
-        return parent
     }
 
     private func fallbackMenu() -> NSMenuItem {

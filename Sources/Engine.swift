@@ -86,6 +86,10 @@ final class Engine {
     private(set) var status = EngineStatus()
     var onStatusChange: ((EngineStatus) -> Void)?
 
+    /// The device list changed. Separate from the status because the menu's device list is
+    /// built from the devices themselves, not from what the engine decided about them.
+    var onDevicesChanged: (() -> Void)?
+
     // MARK: Lifecycle
 
     func start() {
@@ -122,6 +126,7 @@ final class Engine {
         var address = CA.addr(kAudioHardwarePropertyDevices)
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             Log.write("device list changed")
+            DispatchQueue.main.async { self?.onDevicesChanged?() }
             // A moment for the HAL to settle before asking it what is there.
             self?.refreshStatus()
             self?.schedule(after: 0.3)
