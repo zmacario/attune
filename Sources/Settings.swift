@@ -40,14 +40,6 @@ final class Settings {
         set { defaults.set(newValue, forKey: "maximizeBitDepth") }
     }
 
-    /// Music plays the Dolby Atmos variant only when Atmos is forced on; on "Automatic"
-    /// — the default — a stereo USB DAC gets the stereo stream instead. Off unless the
-    /// user has actually set Atmos to Always On.
-    var assumeAtmos: Bool {
-        get { bool("assumeAtmos", default: false) }
-        set { defaults.set(newValue, forKey: "assumeAtmos") }
-    }
-
     /// UID of the DAC. Persisting the UID rather than the AudioDeviceID survives replugging.
     var targetDeviceUID: String? {
         get { defaults.string(forKey: "targetDeviceUID") }

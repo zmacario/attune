@@ -25,7 +25,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--inspect"),
         let all = Movpkg.variants(at: path)
         print("movpkg with \(all.count) variant(s); Music lossless=\(Movpkg.losslessEnabled())")
         for v in all { print("  \(v.bitrate) bps  \(v.label)") }
-        if let pick = Movpkg.preferredVariant(at: path, assumeAtmos: false) {
+        if let pick = Movpkg.preferredVariant(at: path) {
             print("  → would play: \(pick.label)")
         }
     } else if let format = TrackFormat.readingFile(at: path) {
