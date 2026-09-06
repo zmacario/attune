@@ -111,7 +111,10 @@ final class Engine {
         startDeviceListener()
         // Settle the log question once, so a streamed track never waits for a permission
         // the app does not have.
-        work.async { Log.timed("player probe") { PlayerLog.probe() } }
+        work.async { [weak self] in
+            self?.settings.warmFormatCache()
+            Log.timed("player probe") { PlayerLog.probe() }
+        }
         PlayerLog.onNewFormat = { [weak self] in self?.playerReportedNewItem() }
         warmUpMediaAccess()
         // If Music is already playing when we launch, act on it right away.

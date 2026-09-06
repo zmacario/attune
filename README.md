@@ -303,6 +303,23 @@ fosse aplicado instantaneamente em toda execução seguinte, o que é pior que c
 O caminho normal continua rodando e continua tendo a última palavra: se o player discordar,
 corrige dentro da janela de acomodação.
 
+É isso que mantém o cache honesto quando a Apple troca o formato de uma faixa: na primeira
+audição depois da troca o valor velho é aplicado na hora e o player corrige ~1,5 s depois —
+duas transições nessa audição, uma só nas seguintes, porque a entrada é regravada. Reouvir
+uma faixa cujo formato não mudou não escreve nada.
+
+O dicionário fica **em memória**, carregado uma vez na partida, fora do main thread.
+Converter o dicionário guardado no plist percorre todas as entradas — 2 ms com 4 mil, 53 ms
+com 50 mil — e a busca acontece no main thread, na notificação do Music; reler a cada faixa
+gastaria justamente o milissegundo que o cache existe para ganhar. Carregado uma vez, a
+busca é plana em qualquer tamanho. O teto de 50 mil entradas está lá para o plist não
+crescer sem limite, não para expirar nada: ao ser ultrapassado o cache é zerado inteiro, e
+uma biblioteca desse tamanho não é uma biblioteca real.
+
+Um efeito colateral de estar em memória: apagar o cache por fora
+(`defaults delete com.macario.attune formatCache`) só tem efeito com o app **fechado** — de
+app aberto, ele regrava o que tem na memória.
+
 ### Lendo o log do player
 
 Uma faixa em streaming não tem arquivo para inspecionar, e o Music reporta a taxa dela como

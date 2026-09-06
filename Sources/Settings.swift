@@ -64,15 +64,38 @@ final class Settings {
     /// quarter-second debounce and the Apple Event that asks Music what is playing take the
     /// rest. The notification already carries the track's name, so a track heard before can
     /// be applied without asking Music anything at all.
-    private var formatCache: [String: String] {
-        get { defaults.dictionary(forKey: "formatCache") as? [String: String] ?? [:] }
-        set { defaults.set(newValue, forKey: "formatCache") }
+    ///
+    /// Kept in memory rather than read back each time. Bridging the stored dictionary to
+    /// `[String: String]` walks every entry — 2 ms at 4 000, 53 ms at 50 000 — and the
+    /// lookup happens on the main thread, so re-reading it per track would spend the
+    /// millisecond this cache exists to save. Bridged once, a lookup is flat at any size.
+    ///
+    /// The lock is what that memory costs: the lookup runs on the main thread, from the
+    /// notification, while the engine writes from its own queue.
+    private var loadedCache: [String: String]?
+    private let cacheLock = NSLock()
+
+    /// Caller must hold `cacheLock`.
+    private func cacheLocked() -> [String: String] {
+        if let loadedCache { return loadedCache }
+        let stored = defaults.dictionary(forKey: "formatCache") as? [String: String] ?? [:]
+        loadedCache = stored
+        return stored
+    }
+
+    /// Pays that one-time bridge off the main thread, so the session's first track does not.
+    func warmFormatCache() {
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        _ = cacheLocked()
     }
 
     static func cacheKey(name: String, artist: String) -> String { "\(name)|\(artist)" }
 
     func cachedFormat(for key: String) -> TrackFormat? {
-        guard let raw = formatCache[key] else { return nil }
+        cacheLock.lock()
+        let stored = cacheLocked()[key]
+        cacheLock.unlock()
+        guard let raw = stored else { return nil }
         let parts = raw.split(separator: "|", omittingEmptySubsequences: false)
         guard let rate = parts.first.flatMap({ Double($0) }), rate > 0 else { return nil }
         return TrackFormat(sampleRate: rate,
@@ -84,10 +107,25 @@ final class Settings {
     /// apply it instantly on every later play, which is worse than guessing once.
     func remember(_ format: TrackFormat, for key: String) {
         guard !key.isEmpty, format.source == .player, format.sampleRate > 0 else { return }
-        var cache = formatCache
-        if cache.count > 4000 { cache.removeAll() }     // crude bound; these are cheap to relearn
-        cache[key] = "\(Int(format.sampleRate))|\(format.bitDepth.map(String.init) ?? "")"
-        formatCache = cache
+        let value = "\(Int(format.sampleRate))|\(format.bitDepth.map(String.init) ?? "")"
+
+        // Read, decide and write back under one lock. Two steps would let a second writer
+        // read between them and drop this entry when it stores its own copy.
+        cacheLock.lock()
+        var cache = cacheLocked()
+        // Re-hearing a track already known writes nothing. This is the common case, and
+        // storing the dictionary rewrites the whole plist, so it is worth not doing.
+        guard cache[key] != value else { cacheLock.unlock(); return }
+        // A bound, not a policy: a library this size is not a real one, so the branch is
+        // there to stop an unbounded plist rather than to expire anything.
+        if cache.count > 50_000 { cache.removeAll() }
+        cache[key] = value
+        loadedCache = cache
+        cacheLock.unlock()
+
+        // Outside the lock: this bridges every entry, and holding the lock across it would
+        // stall the main thread's lookup for as long as that takes.
+        defaults.set(cache, forKey: "formatCache")
     }
 
     /// Remembered alongside the UID so an absent device can still be named in the menu —
