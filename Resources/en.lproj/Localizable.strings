@@ -42,7 +42,6 @@
 "login.openSettings" = "Open System Settings";
 "login.title" = "Launch at login";
 "menu.activity" = "Show recent activity…";
-"menu.assumeAtmos" = "Dolby Atmos is set to Always On";
 "menu.assumeRate" = "Assume %@";
 "menu.audioMidi" = "Open Audio MIDI Setup";
 "menu.checklist" = "Check bit-perfect setup…";

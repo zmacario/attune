@@ -147,8 +147,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
              { [unowned self] in settings.seamlessSwitch }, { [unowned self] in toggleSeamless() }),
             (localized("menu.restoreOnStop"),
              { [unowned self] in settings.restoreOnStop }, { [unowned self] in toggleRestore() }),
-            (localized("menu.assumeAtmos"),
-             { [unowned self] in settings.assumeAtmos }, { [unowned self] in toggleAtmos() }),
         ]
         let toggleWidth = ToggleMenuItemView.width(for: toggles.map(\.title))
 
@@ -268,7 +266,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleDepth()    { settings.maximizeBitDepth = !settings.maximizeBitDepth; Engine.shared.reapply() }
     @objc private func toggleSeamless() { settings.seamlessSwitch = !settings.seamlessSwitch }
     @objc private func toggleRestore()  { settings.restoreOnStop = !settings.restoreOnStop }
-    @objc private func toggleAtmos()    { settings.assumeAtmos = !settings.assumeAtmos; Engine.shared.reapply() }
     @objc private func reapply()        { Engine.shared.reapply() }
 
     @objc private func pickDevice(_ sender: NSMenuItem) {

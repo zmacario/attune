@@ -42,7 +42,6 @@
 "login.openSettings" = "Abrir Ajustes do Sistema";
 "login.title" = "Abrir ao iniciar sessão";
 "menu.activity" = "Mostrar atividade recente…";
-"menu.assumeAtmos" = "Dolby Atmos está em Sempre Ativado";
 "menu.assumeRate" = "Assumir %@";
 "menu.audioMidi" = "Abrir Configuração de Áudio e MIDI";
 "menu.checklist" = "Verificar ajuste bit-perfect…";

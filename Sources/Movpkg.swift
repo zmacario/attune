@@ -24,19 +24,20 @@ enum Movpkg {
         path.hasSuffix(".movpkg") || path.hasSuffix(".movpkg/")
     }
 
-    /// Music's own settings decide which variant plays. Lossless is a plain preference;
-    /// Atmos is not, because on "Automatic" — the default — a stereo USB DAC never gets
-    /// the Atmos stream, so we ignore ec-3 unless the user says otherwise.
+    /// Music's own settings decide which variant plays, and only the lossless preference
+    /// is readable. Whether Dolby Atmos is actually in use is not — so this path skips the
+    /// Atmos variants entirely rather than guessing.
+    ///
+    /// It is a fallback: normally the player's log says which variant it decoded, Atmos
+    /// included, and this runs only when that log cannot be read.
     static func losslessEnabled() -> Bool {
         UserDefaults(suiteName: "com.apple.Music")?.bool(forKey: "losslessEnabled") ?? true
     }
 
-    static func preferredVariant(at path: String, assumeAtmos: Bool) -> MovpkgVariant? {
+    static func preferredVariant(at path: String) -> MovpkgVariant? {
         let all = variants(at: path)
         let lossless = losslessEnabled()
         guard !all.isEmpty else { return nil }
-
-        if assumeAtmos, let atmos = all.first(where: { $0.isAtmos }) { return atmos }
 
         let stereo = all.filter { !$0.isAtmos }
         guard !stereo.isEmpty else { return all.max { $0.bitrate < $1.bitrate } }
@@ -46,6 +47,7 @@ enum Movpkg {
         }
         return stereo.max { $0.bitrate < $1.bitrate }
     }
+
 
     static func variants(at path: String) -> [MovpkgVariant] {
         let root = URL(fileURLWithPath: path)

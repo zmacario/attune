@@ -60,11 +60,11 @@ struct TrackFormat: Equatable {
         return TrackFormat(sampleRate: asbd.mSampleRate, bitDepth: bits > 0 ? bits : nil, source: .file)
     }
 
-    static func resolve(track: MusicTrack, fallbackRate: Double, assumeAtmos: Bool) -> TrackFormat? {
+    static func resolve(track: MusicTrack, fallbackRate: Double) -> TrackFormat? {
         if let path = track.path {
             // Apple Music downloads are bundles of HLS variants, not audio files.
             if Movpkg.isMovpkg(path) {
-                if let variant = Movpkg.preferredVariant(at: path, assumeAtmos: assumeAtmos) {
+                if let variant = Movpkg.preferredVariant(at: path) {
                     return TrackFormat(sampleRate: variant.sampleRate,
                                        bitDepth: variant.bitDepth,
                                        source: .download)

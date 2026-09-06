@@ -284,7 +284,12 @@ final class Engine {
     private func resolveFormat(for track: MusicTrack) -> TrackFormat? {
         let streaming = track.path == nil
 
-        if streaming, PlayerLog.isAvailable {
+        // Asked for every track, not just streamed ones. The player reports the variant it
+        // decoded either way, which is the only thing that knows whether Dolby Atmos is
+        // actually playing — reading the .movpkg can see that an Atmos variant exists but
+        // not whether Music chose it, and that guess used to be a setting the user had to
+        // get right.
+        if PlayerLog.isAvailable {
             let searchFrom = trackStartedAt.addingTimeInterval(-Self.playerLookback)
             let buffered = PlayerLog.latestFormat(since: searchFrom)
             Log.write("player check: buffered=\(buffered.map { "\($0.item) \(rateLabel($0.sampleRate))" } ?? "none")"
@@ -308,13 +313,17 @@ final class Engine {
                 playerFormatForTrack = format
                 return format
             }
-            playerAttemptsMade += 1
-            if playerAttemptsMade < Self.playerAttempts {
-                // Nothing yet. Hold off rather than set a rate we would have to undo.
-                schedule(after: PlayerLog.suggestedRetryInterval)
-                return nil
+            // A streamed track has nothing else to go on, so it is worth waiting. A local
+            // file does: resolve from it now, and let a later report correct it inside the
+            // settling window if the two disagree.
+            if streaming {
+                playerAttemptsMade += 1
+                if playerAttemptsMade < Self.playerAttempts {
+                    schedule(after: PlayerLog.suggestedRetryInterval)
+                    return nil
+                }
             }
-            if !missNotedForTrack {
+            if streaming, !missNotedForTrack {
                 // Once per track, not once per attempt: the window expiring is re-checked
                 // on every later event for the same track.
                 missNotedForTrack = true
@@ -322,9 +331,7 @@ final class Engine {
             }
         }
 
-        return TrackFormat.resolve(track: track,
-                                   fallbackRate: settings.fallbackRate,
-                                   assumeAtmos: settings.assumeAtmos)
+        return TrackFormat.resolve(track: track, fallbackRate: settings.fallbackRate)
     }
 
     private func applyFormat(_ format: TrackFormat, to device: AudioDevice,
