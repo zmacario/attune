@@ -135,13 +135,41 @@ Ele só age quando **tudo** é conhecido, e não faz nada quando falta qualquer 
 | condição | por quê |
 |---|---|
 | *Pausar durante a troca de taxa* ligado | é a pausa que faz isso não custar áudio |
-| modo aleatório desligado | com shuffle, a próxima por índice não é a que toca |
+| modo aleatório desligado | com shuffle, a próxima por índice não é a que toca ([por quê](#por-que-o-modo-aleatório-não-dá)) |
 | a próxima faixa é identificável | rádio e outras fontes não têm playlist |
 | o formato dela já está no cache | faixa nunca ouvida não tem o que antecipar |
 | sobra mais que 2,5 s | tarde demais para preparar |
 
 Se a faixa mudar antes da hora marcada — você pulou, ou o Music adiantou — a antecipação se
 recolhe sem fazer nada (`pre-switch: track already changed, standing down`).
+
+#### Por que o modo aleatório não dá
+
+O Music **não anuncia** a próxima faixa. Ele expõe a playlist e o índice da atual, e o app
+soma um — é dedução a partir da ordem da lista, não um aviso. Embaralhado, esse índice + 1
+continua existindo e respondendo; só não é o que vai tocar.
+
+A fila real, a do *A Seguir*, **não existe para scripts**. A terminologia do Music
+(`com.apple.Music.sdef`) não tem nenhuma menção a *up next*, e a lista de propriedades da
+aplicação é explícita sobre o que há:
+
+```
+current playlist    playlist     ← a lista, em ordem
+current track       track
+shuffle enabled     boolean      ← diz SE está embaralhado
+shuffle mode        eShM
+song repeat         eRpt
+```
+
+Ele informa **que** está embaralhado, nunca **o que** vem depois. Então isto não é uma
+pendência à espera de esforço: a informação não é exposta. Em modo aleatório o recurso fica
+inerte e a troca volta a acontecer no início da faixa nova — todo o resto do app segue igual.
+
+Pela mesma razão, a dedução segue a ordem **da lista**, não a de reprodução. Reordenar a
+visualização da playlist enquanto ela toca pode fazer `índice + 1` deixar de ser o que vem.
+Se isso acontecer, nada quebra: a faixa nova começa, o caminho comum detecta a taxa real e
+corrige — uma transição pior, com o buraco de sempre mais um silêncio extra na cauda
+anterior, e a seguinte já volta ao normal.
 
 Duas armadilhas custaram uma versão cada, e as duas estão no código como comentário:
 
