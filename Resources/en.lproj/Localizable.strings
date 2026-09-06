@@ -52,7 +52,7 @@
 "menu.outputDevice" = "Output device";
 "menu.quit" = "Quit";
 "menu.reapply" = "Re-apply now";
-"menu.restartOnChange" = "Restart track on rate change";
+"menu.restartOnChange" = "Pause during rate changes";
 "menu.restoreOnStop" = "Restore previous output when Music stops";
 "menu.route" = "Route Music to this device";
 "menu.unknownRate" = "When the rate is unknown";

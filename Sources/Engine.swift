@@ -43,18 +43,43 @@ final class Engine {
     private var trackKey: String?
     private var trackStartedAt = Date()
     private var missNotedForTrack = false
+    private var playerAttemptsMade = 0
 
-    /// How long to give the player to report a streamed track's format before giving up
-    /// and guessing, and how often to ask in the meantime.
-    /// Measured: the player's report lagged the track change by 0.4 s to 3.3 s, so three
-    /// seconds cut it off mid-stride. The gap between attempts comes from PlayerLog,
-    /// which knows what a read costs by the method that works here.
-    private static let playerWindow: TimeInterval = 6
+    /// The player item whose format was used for the previous track. A report carrying the
+    /// same item belongs to that track, not this one — timing alone could not tell them
+    /// apart, and skipping quickly made neighbouring tracks swap formats.
+    private var lastPlayerItem: String?
 
-    /// How far *before* the track change to look. Measured: the player reports a format
-    /// about three seconds before Music posts its notification, because it reports while
-    /// preparing the item. A window that starts at the track change looks in the wrong
-    /// direction and finds nothing, every time.
+    /// What the player told us about the track being played now, if anything.
+    ///
+    /// Without this, a second look at the same track saw the item it had already used,
+    /// read that as "nothing new", and fell through to the fallback — overwriting a
+    /// correct reading with a guess. No new report means the answer has not changed, not
+    /// that there is no answer.
+    private var playerFormatForTrack: TrackFormat?
+
+    /// How many times to ask the player before giving up and guessing.
+    ///
+    /// Bounded by attempts rather than elapsed time, because the cost is per read and some
+    /// tracks are never reported at all — a time budget with a short gap would spend
+    /// several reads on those for nothing. Measured: the report lands within about a second
+    /// of the track change when it lands at all, so three attempts cover it. The gap
+    /// between them comes from PlayerLog, which knows what a read costs by the method that
+    /// works here.
+    private static let playerAttempts = 3
+
+    /// How long after a track change a late report may still change the answer.
+    ///
+    /// Skipping faster than the player reports leaves the app describing one track while
+    /// the player describes the next, and no rule reconciles two sources sampled at
+    /// different moments. Re-resolving when a later report arrives converges during that
+    /// scramble, while the bound keeps it from ever revisiting a track that has settled —
+    /// a correction there would be a dropout in the middle of the music.
+    private static let playerSettlingWindow: TimeInterval = 3
+
+    /// How far *before* the track change a report may still belong to it. Generous,
+    /// because the item identifier is what keeps the previous track's report out; this is
+    /// only a sanity bound on how old an answer may be.
     private static let playerLookback: TimeInterval = 10
 
 
@@ -82,6 +107,7 @@ final class Engine {
         // Settle the log question once, so a streamed track never waits for a permission
         // the app does not have.
         work.async { Log.timed("player probe") { PlayerLog.probe() } }
+        PlayerLog.onNewFormat = { [weak self] in self?.playerReportedNewItem() }
         warmUpMediaAccess()
         // If Music is already playing when we launch, act on it right away.
         if MusicBridge.isRunning { schedule(after: 0.3) }
@@ -103,6 +129,17 @@ final class Engine {
         deviceListener = block
         let status = AudioObjectAddPropertyListenerBlock(CA.system, &address, work, block)
         if status != noErr { Log.write("device listener FAILED: \(status)") }
+    }
+
+    /// A report for an item we have not used yet, arriving while the track is still
+    /// settling. Worth another look; after the window, deliberately ignored.
+    private func playerReportedNewItem() {
+        work.async { [weak self] in
+            guard let self else { return }
+            guard Date().timeIntervalSince(self.trackStartedAt) < Self.playerSettlingWindow else { return }
+            Log.write("player reported a new item while the track was settling; re-resolving")
+            self.schedule(after: 0.05)
+        }
     }
 
     private func startPolling() {
@@ -151,8 +188,13 @@ final class Engine {
     func reapply() { schedule(after: 0) }
 
     private func handlePlaying() {
-        guard Date() >= suppressUntil else {
-            Log.write("handlePlaying: suppressed (our own pause/play)")
+        // Suppression exists to ignore the notifications our own pause and play cause. It
+        // must defer, not discard: a genuine event landing inside the window — the player
+        // reporting the next track's format, say — would otherwise be dropped, and with
+        // the track already settled nothing would ever ask again.
+        if Date() < suppressUntil {
+            Log.write("handlePlaying: deferred past our own pause/play")
+            schedule(after: suppressUntil.timeIntervalSinceNow + 0.05)
             return
         }
 
@@ -209,7 +251,7 @@ final class Engine {
            let format = Log.timed("resolveFormat", { resolveFormat(for: track) }) {
             Log.write("resolved: \(format.summary) via \(format.source.rawValue); device at \(rateLabel(device.nominalSampleRate))")
             next.detected = format
-            applyFormat(format, to: device, trackPosition: track.position, into: &next)
+            applyFormat(format, to: device, into: &next)
         }
 
         let fresh = settings.resolveTargetDevice() ?? device
@@ -229,6 +271,8 @@ final class Engine {
         guard key != trackKey else { return }
         trackKey = key
         missNotedForTrack = false
+        playerAttemptsMade = 0
+        playerFormatForTrack = nil
         let position = min(track?.position ?? 0, 120)   // bound the log window we ask for
         trackStartedAt = Date().addingTimeInterval(-position)
     }
@@ -242,16 +286,30 @@ final class Engine {
 
         if streaming, PlayerLog.isAvailable {
             let searchFrom = trackStartedAt.addingTimeInterval(-Self.playerLookback)
-            if let reported = PlayerLog.latestFormat(since: searchFrom) {
+            let buffered = PlayerLog.latestFormat(since: searchFrom)
+            Log.write("player check: buffered=\(buffered.map { "\($0.item) \(rateLabel($0.sampleRate))" } ?? "none")"
+                      + " lastUsed=\(lastPlayerItem ?? "-") attempts=\(playerAttemptsMade)")
+            // Nothing newer than what this track was already resolved from: keep it.
+            if let already = playerFormatForTrack,
+               buffered.map({ $0.item == lastPlayerItem }) ?? true {
+                return already
+            }
+
+            if let reported = buffered,
+               reported.item.isEmpty || reported.item != lastPlayerItem {
+                lastPlayerItem = reported.item
                 PlayerLog.noteHit()
                 Log.write("player reports \(reported.rendition) \(rateLabel(reported.sampleRate))"
                           + " \(reported.bitDepth.map { "\($0)-bit" } ?? "")"
                           + " \(reported.channels.map { "\($0)ch" } ?? "")")
-                return TrackFormat(sampleRate: reported.sampleRate,
-                                   bitDepth: reported.bitDepth,
-                                   source: .player)
+                let format = TrackFormat(sampleRate: reported.sampleRate,
+                                         bitDepth: reported.bitDepth,
+                                         source: .player)
+                playerFormatForTrack = format
+                return format
             }
-            if Date().timeIntervalSince(trackStartedAt) < Self.playerWindow {
+            playerAttemptsMade += 1
+            if playerAttemptsMade < Self.playerAttempts {
                 // Nothing yet. Hold off rather than set a rate we would have to undo.
                 schedule(after: PlayerLog.suggestedRetryInterval)
                 return nil
@@ -270,7 +328,7 @@ final class Engine {
     }
 
     private func applyFormat(_ format: TrackFormat, to device: AudioDevice,
-                             trackPosition: Double, into status: inout EngineStatus) {
+                             into status: inout EngineStatus) {
         let supported = device.supportedSampleRates
         Log.write("applyFormat: want \(rateLabel(format.sampleRate)), device supports \(supported.map { rateLabel($0) }.joined(separator: "/"))")
         guard let rate = supported.first(where: { abs($0 - format.sampleRate) < 1 }) else {
@@ -282,16 +340,27 @@ final class Engine {
             return
         }
 
-        // Changing the rate under a live stream clicks. Pausing first, then restarting the
-        // track from the top, gives a clean transition — but only rewind if we're still
-        // near the start, so a manual seek isn't thrown away.
+        // Changing the rate under a live stream costs about 800 ms of reconfiguration
+        // during which the audio is simply gone, and the discontinuity can click. Pausing
+        // first turns that into a deliberate silence with nothing lost.
+        //
+        // It resumes where it paused rather than restarting the track. Rewinding made
+        // sense when the change happened at the very first instant, but the rate is now
+        // settled around 0.85 s in, and replaying that second is more noticeable than the
+        // gap itself.
         let shouldPause = Settings.shared.seamlessSwitch
-        let rewind = shouldPause && trackPosition < 8
 
         if shouldPause {
             suppressUntil = Date().addingTimeInterval(6)
             try? Log.timed("pause") { try MusicBridge.pause() }
         }
+
+        // Both readings sit inside the same interval, so the Apple Event each one costs
+        // lands in the wall clock and in the position alike and cannot skew the comparison.
+        // Only meaningful with the pause off: paused, the position obviously stands still.
+        let measuring = settings.measureContinuity
+        let startedAt = Date()
+        let positionBefore = measuring ? try? MusicBridge.position() : nil
 
         // The physical format carries the sample rate, so setting it alone reconfigures the
         // device once rather than twice — the DAC relocks its clock on each change, and that
@@ -305,10 +374,17 @@ final class Engine {
         if !ok || abs(device.nominalSampleRate - rate) >= 1 {
             ok = Log.timed("setSampleRate") { device.setSampleRate(rate) }
         }
+        if measuring, let positionBefore, let positionAfter = try? MusicBridge.position() {
+            let wall = Date().timeIntervalSince(startedAt)
+            let played = positionAfter - positionBefore
+            Log.write(String(format: "continuity: wall %.2fs, playback advanced %.2fs — %@",
+                             wall, played,
+                             played > wall / 2 ? "audio was lost" : "Music stalled, nothing lost"))
+        }
+
         Log.write("rate -> \(rateLabel(rate)): \(ok ? "ok" : "FAILED")")
 
         if shouldPause {
-            if rewind { try? MusicBridge.seek(to: 0) }
             try? Log.timed("play") { try MusicBridge.play() }
             suppressUntil = Date().addingTimeInterval(1.0)
         }

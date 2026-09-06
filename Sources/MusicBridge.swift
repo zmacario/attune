@@ -108,6 +108,14 @@ enum MusicBridge {
         return (fields[0], track, hygiene)
     }
 
+    /// Where playback is, in seconds. Used to tell whether Music keeps running while the
+    /// device reconfigures — if it does, that stretch of the music is simply lost.
+    static func position() throws -> Double {
+        let text = try run(#"tell application id "com.apple.Music" to get player position as text"#)
+        // AppleScript formats reals with the system separator, which is not always a dot.
+        return Double(text.replacingOccurrences(of: ",", with: ".")) ?? -1
+    }
+
     static func pause() throws { try run(#"tell application id "com.apple.Music" to pause"#) }
     static func play()  throws { try run(#"tell application id "com.apple.Music" to play"#)  }
 

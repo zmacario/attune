@@ -7,6 +7,11 @@ struct PlayerFormat {
     let sampleRate: Double
     let bitDepth: Int?          // reported as 0 for lossy and for Atmos
     let channels: Int?
+
+    /// The player's identifier for this item, e.g. "I/QX.257". The message names no track,
+    /// but every track gets its own token and repeated reports of one share it — which is
+    /// what tells a report about this track apart from one about the last.
+    let item: String
 }
 
 /// Reads the format out of Music's own log.
@@ -41,15 +46,31 @@ enum PlayerLog {
     private static var store: OSLogStore?
     private static var method: Method = .undetermined
 
-    /// How long to wait between attempts, given what reading costs here: the framework
-    /// answers in about 100 ms, while spawning /usr/bin/log costs around 750 ms, and an
-    /// undetermined method may try both.
+    /// A long-running `log stream`, and the last format it pushed to us.
+    ///
+    /// Querying with `log show` costs about 800 ms per read, all of it process launch, and
+    /// that delay was the whole reason the rate settled almost a second into a track rather
+    /// than at its start. A stream costs that once. It is also fresher: a query was seen
+    /// returning the previous track's format because the new line was not visible to it yet.
+    private static var stream: Process?
+    private static var pending = Data()
+    private static var latest: (format: PlayerFormat, observedAt: Date)?
+
+    /// The gap between attempts, on top of what a read itself costs — about 100 ms via the
+    /// framework and about 800 ms via the tool. Kept short because the report, when it
+    /// comes at all, lands within roughly a second of the track change; the number of
+    /// attempts is what bounds the waste, not this.
     static var suggestedRetryInterval: TimeInterval {
         lock.lock(); defer { lock.unlock() }
-        return method == .store ? 0.8 : 2.0
+        if stream?.isRunning == true { return 0.25 }   // reading costs nothing now
+        return method == .store ? 0.3 : 0.6
     }
 
     /// False while the question has not been answerable yet — Music was not running.
+    /// Called when the stream delivers a format the reader had not seen before. Lets a
+    /// listener converge after skipping faster than the player can report.
+    static var onNewFormat: (() -> Void)?
+
     static var isSettled: Bool {
         lock.lock(); defer { lock.unlock() }
         return method != .undetermined
@@ -85,7 +106,11 @@ enum PlayerLog {
         // to it after 30 seconds. /usr/bin/log reads the memory buffer too and sees the
         // same entry immediately. A cheap answer about a state from minutes ago is worth
         // nothing here.
-        if canRead(via: .tool) { settle(on: .tool, "/usr/bin/log"); return }
+        if canRead(via: .tool) {
+            settle(on: .tool, "/usr/bin/log")
+            startStreaming()
+            return
+        }
         if canRead(via: .store) { settle(on: .store, "OSLogStore"); return }
         giveUp("Music's log entries are not readable")
     }
@@ -118,11 +143,80 @@ enum PlayerLog {
     }
 
     static func latestFormat(since date: Date) -> PlayerFormat? {
-        lock.lock(); let current = method; lock.unlock()
+        lock.lock()
+        let current = method
+        let streaming = stream?.isRunning == true
+        let buffered = latest
+        lock.unlock()
+
+        if streaming {
+            // An in-memory read: nothing to pay, and never stale.
+            guard let buffered, buffered.observedAt >= date else { return nil }
+            return buffered.format
+        }
+
         switch current {
         case .store: return viaStore(since: date)
         case .tool:  return viaLogTool(seconds: max(2, -date.timeIntervalSinceNow))
         default:     return nil
+        }
+    }
+
+    // MARK: Streaming
+
+    private static func startStreaming() {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/log")
+        task.arguments = ["stream", "--style", "compact", "--level", "debug",
+                          "--predicate", "process == \"Music\" AND eventMessage CONTAINS \"\(marker)\""]
+        let output = Pipe()
+        task.standardOutput = output
+        task.standardError = FileHandle.nullDevice
+
+        output.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty else { return }
+            consume(data)
+        }
+        task.terminationHandler = { _ in
+            // Falling back to per-track queries is slower but still correct.
+            Log.write("player stream ended; falling back to querying per track")
+        }
+
+        guard (try? task.run()) != nil else {
+            Log.write("player stream could not start; querying per track instead")
+            return
+        }
+        lock.lock(); stream = task; lock.unlock()
+        Log.write("player stream started")
+
+        // The stream only carries what is emitted from now on, so a track already playing
+        // would have nothing behind it. One query seeds the buffer with the current state.
+        if let seeded = viaLogTool(seconds: 900) {
+            lock.lock()
+            if latest == nil { latest = (seeded, Date()) }
+            lock.unlock()
+        }
+    }
+
+    private static func consume(_ data: Data) {
+        lock.lock()
+        pending.append(data)
+        var lines: [String] = []
+        while let newline = pending.firstIndex(of: 0x0A) {
+            let line = pending[pending.startIndex..<newline]
+            pending.removeSubrange(pending.startIndex...newline)
+            if let text = String(data: line, encoding: .utf8) { lines.append(text) }
+        }
+        lock.unlock()
+
+        for line in lines where !line.isEmpty {
+            guard let format = parse(line) else { continue }
+            lock.lock()
+            let isNewItem = latest?.format.item != format.item
+            latest = (format, Date())
+            lock.unlock()
+            if isNewItem { onNewFormat?() }
         }
     }
 
@@ -214,6 +308,7 @@ enum PlayerLog {
     private static let fields = try! NSRegularExpression(
         pattern: #"\[Rendition (\w+)\].*?\[SampleRate (\d+)\].*?\[BitDepth (\d+)\]"#)
     private static let channelField = try! NSRegularExpression(pattern: #"\[AudioChannels (\d+)\]"#)
+    private static let itemField = try! NSRegularExpression(pattern: #"<0x[0-9a-f]+\|([^>]+)>"#)
 
     static func parse(_ message: String) -> PlayerFormat? {
         let range = NSRange(message.startIndex..., in: message)
@@ -227,10 +322,14 @@ enum PlayerLog {
             .flatMap { message.substring($0, 1) }
             .flatMap(Int.init)
 
+        let item = itemField.firstMatch(in: message, range: range)
+            .flatMap { message.substring($0, 1) } ?? ""
+
         return PlayerFormat(rendition: rendition,
                             sampleRate: rate,
                             bitDepth: (depth ?? 0) > 0 ? depth : nil,
-                            channels: channels)
+                            channels: channels,
+                            item: item)
     }
 }
 

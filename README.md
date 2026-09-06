@@ -101,8 +101,12 @@ autoassinado. O nome precisa bater exatamente.
    zerados nas posições menos significativas.
 4. Avisa se o volume interno do Music ou o equalizador estiverem estragando o resultado.
 
-Com *Restart track on rate change* ligado (padrão), ele pausa, troca a taxa e recomeça a
-faixa do zero. Sem isso, a troca acontece no meio do stream e dá um clique audível.
+Com *Pausar durante a troca de taxa* ligado (padrão), ele pausa, reconfigura e retoma de
+onde parou. Vale medido: sem a pausa, o Music continua correndo enquanto o DAC relaqueia, e
+a posição do player avança exatamente o tempo de relógio — **~0,74 s da música são pulados**
+a cada troca. A pausa custa ~0,12 s a mais de silêncio e não perde nada. As duas soam
+parecidas justamente porque têm quase a mesma duração; só uma delas mantém a música
+inteira.
 
 ## O menu
 
@@ -114,7 +118,7 @@ Wire: 96 kHz 32-bit int (packed) 2ch                 ← o que sai no barramento
 ☑ Route Music to this device
 ☑ Match the track's sample rate                      ← clicar não fecha o menu
 ☑ Use the deepest bit format
-☑ Restart track on rate change
+☑ Pause during rate changes
 ☐ Restore previous output when Music stops
 ☐ Dolby Atmos is set to Always On
 ─────────────────────────────────────────
@@ -280,41 +284,46 @@ Para ver o que tem dentro de uma faixa:
 ### Streaming: lendo o log do player
 
 Uma faixa em streaming não tem arquivo para inspecionar, e o Music reporta a taxa dela como
-zero. Antes disso o app chutava 44,1 kHz para todas — o que rebaixa silenciosamente um
-stream de 96 kHz pela metade.
+zero. Sem isso o app chutaria 44,1 kHz para todas — rebaixando pela metade um stream de
+96 kHz, em silêncio.
 
 O player do CoreMedia registra no log do sistema a variante que **realmente decodificou**:
 
 ```
-[AudioFormat qlac is decodable] [AudioChannels 2] [Rendition Lossless]
-[SampleRate 96000] [BitDepth 24]
+<0x7fa79005f600|I/QX.257>: [AudioFormat qlac is decodable] [AudioChannels 2]
+[Rendition Lossless] [SampleRate 96000] [BitDepth 24]
 ```
 
-O app lê essa linha. Três coisas nisso não são óbvias, e cada uma custou um diagnóstico
-errado antes de ser entendida:
+Quatro decisões aí não são óbvias, e cada uma custou um diagnóstico errado antes de ser
+entendida.
 
-**Usa `/usr/bin/log`, não o `OSLogStore`,** apesar de o subprocesso custar sete vezes mais
-por leitura (~800 ms contra ~100 ms). O `OSLogStore` lê o arquivo persistido, e entradas de
-nível info levam **minutos** para chegar lá: uma entrada recém-escrita pelo próprio processo
+**Um `log stream` de vida longa, não consultas por faixa.** Cada `log show` gasta ~800 ms
+só para lançar o processo, e era esse custo — não espera por informação — que fazia a taxa
+se acomodar quase um segundo depois do início da faixa. Com o stream a leitura vira acesso
+à memória e a resolução cai para ~0,3 s, o que põe a pausa perto do limite entre as músicas.
+Custa 0,3% de CPU e 5 MB.
+
+**Nem `OSLogStore`, que seria mais barato.** Ele lê o arquivo persistido, e entradas de
+nível info levam **minutos** para chegar lá: uma linha recém-escrita pelo próprio processo
 seguia invisível a ele depois de 30 segundos, enquanto a ferramenta a via na hora. Uma
 resposta barata sobre um estado de minutos atrás não vale nada.
 
-**A janela olha para trás.** O player reporta ao preparar o item, então a linha costuma sair
-um a três segundos **antes** de o Music anunciar a troca de faixa. Uma janela que começa na
-troca procura no sentido errado. Ela também pode sair depois, então o app insiste por alguns
-segundos.
+**A atribuição é por identidade, não por tempo.** A mensagem não nomeia a faixa, e decidir
+pelo horário fazia faixas vizinhas trocarem de formato quando se pulava rápido. Mas cada
+faixa tem seu próprio token (`I/QX.257` acima), compartilhado pelos relatórios repetidos
+dela — estava impresso em toda linha, e eu o tratava como ruído hexadecimal.
 
-**Não há correção no meio da faixa.** Se a linha não chegar a tempo, o app usa o fallback e
-não volta atrás. Aplicar um chute e revisá-lo depois colocaria um segundo corte no meio da
-música, em vez de no início — e trocar a taxa exige ~800 ms de reconfiguração do DAC, que
-não tem como ser silenciosa com o áudio rodando.
+**Correção só nos 3 primeiros segundos.** Pular mais rápido do que o player reporta deixa o
+app descrevendo uma faixa enquanto o player descreve outra, e nenhuma regra reconcilia duas
+fontes amostradas em momentos diferentes. Um relatório novo faz o app reavaliar, mas só
+dentro dessa janela: depois dela, uma correção seria um corte no meio da música.
 
-Downloads não passam por aqui: o `.movpkg` é autoritativo e resolve na hora.
+Downloads não passam por aqui — o `.movpkg` é autoritativo e resolve na hora.
 
-Se o log não responder — Music fechado no start, ou a mensagem tendo mudado — o app desliga
-a leitura, registra o motivo e volta ao comportamento anterior. A verificação disso é feita
-uma vez, com uma pergunta que precisa ter resposta *e* ser sobre algo recente: perguntar se
-"qualquer entrada" pode ser lida responde sim com as entradas do próprio app.
+Se o log não responder, o app desliga a leitura, registra o motivo e volta ao comportamento
+anterior. A verificação é feita uma vez, com uma pergunta que precisa ter resposta **e** ser
+sobre algo recente: perguntar se "qualquer entrada" pode ser lida responde sim com as
+entradas do próprio app.
 
 ## Ajustes que você precisa fazer à mão
 
@@ -430,9 +439,24 @@ Para acompanhar o que o player está reportando, ao vivo:
 ```
 
 ```
-19:54:02  Lossless  44.1 kHz  16-bit  2ch
-20:06:10  Lossless  96 kHz    24-bit  2ch
+19:54:02  Lossless  44.1 kHz  16-bit  2ch  I/QX.257
+20:06:10  Lossless  96 kHz    24-bit  2ch  I/YH.259
 ```
+
+E, para verificar o ciclo inteiro sem fazer nada à mão:
+
+```bash
+tools/test-switching.sh 8 1.2      # 8 pulos, 1,2 s entre eles
+```
+
+Ele reinstala, abre o app, pula faixas pelo Music e confere se o DAC terminou na taxa que o
+player reportou por último. A verificação é sobre o **estado final**, não sobre cada leitura
+intermediária: pular mais rápido do que o player reporta produz desencontros transitórios
+que são esperados, enquanto a taxa em que você fica ouvindo nunca pode estar errada.
+
+Ele responde `INCONCLUSIVE` quando o player ainda está falando durante a medição. Sem isso
+ele comparava o DAC contra o formato da faixa que o player já estava preparando, e reprovava
+o app quando o app estava certo.
 
 
 O menu tem *Show recent activity…*, que mostra as últimas decisões do app. Pela linha de
@@ -472,6 +496,7 @@ Mostra taxa atual, formato do barramento e tudo que cada saída aceita. Dá para
 | `Resources/*.lproj` | Textos da interface, um diretório por idioma |
 | `tools/make-icon.swift` | Desenha o ícone; `make-icon.sh` empacota com `iconutil` |
 | `tools/check-localization.py` | Falha o build se faltar tradução |
+| `tools/test-switching.sh` | Ciclo completo de verificação: reinstala, pula faixas, confere o DAC |
 | `tools/create-signing-identity.sh` | Cria o certificado que preserva as permissões |
 
 Duas coisas que valem saber sobre o build:
