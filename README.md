@@ -449,12 +449,46 @@ app descrevendo uma faixa enquanto o player descreve outra, e nenhuma regra reco
 fontes amostradas em momentos diferentes. Um relatório novo faz o app reavaliar, mas só
 dentro dessa janela: depois dela, uma correção seria um corte no meio da música.
 
-Downloads não passam por aqui — o `.movpkg` é autoritativo e resolve na hora.
+**Downloads passam por aqui também.** O log é a única fonte que sabe qual variante o Music
+de fato escolheu — ler o `.movpkg` vê que existe uma variante Atmos, não que ela está
+tocando. O download não espera por isso: se o log ainda não respondeu, ele resolve do
+arquivo na hora e uma leitura posterior corrige dentro da janela de acomodação. Na prática o
+log costuma chegar primeiro — numa sessão de três horas, as 13 resoluções saíram todas
+`via player`.
 
 Se o log não responder, o app desliga a leitura, registra o motivo e volta ao comportamento
 anterior. A verificação é feita uma vez, com uma pergunta que precisa ter resposta **e** ser
 sobre algo recente: perguntar se "qualquer entrada" pode ser lida responde sim com as
 entradas do próprio app.
+
+#### Se o log parar de funcionar
+
+A mensagem lida não é API pública. Se ela mudar de forma num update do macOS, o app se
+desliga sozinho — e aí importa se a faixa está baixada:
+
+| | faixa baixada | streaming |
+|---|---|---|
+| taxa e profundidade | **exatas, lidas do arquivo** | palpite (o fallback, 44,1 kHz por padrão) |
+| bit-perfect | mantido | perdido em tudo que não for 44,1 |
+| espera | nenhuma | nenhuma, mas o valor é chute |
+
+O `.movpkg` é lido pelo contêiner — taxa no `mdhd`, profundidade no cookie do ALAC. Formato
+público, sem depender de interno da Apple. É o que o `--inspect` mostra:
+
+```
+movpkg with 1 variant(s); Music lossless=true
+  3410074 bps  alac 24-bit 96 kHz
+  → would play: alac 24-bit 96 kHz
+```
+
+Uma consequência menos óbvia: o cache só guarda o que o **player** reportou, de propósito
+(guardar um chute seria pior que chutar uma vez). Sem o log, portanto, nada novo entra no
+cache — faixas baixadas continuam tocando certas, mas a antecipação deixa de armar para
+faixas ainda não conhecidas. As já memorizadas seguem valendo.
+
+Ter a lista baixada não melhora a qualidade: é o mesmo arquivo dos dois jeitos, e com o log
+funcionando os dois caminhos chegam ao mesmo resultado. O que ela dá é **independência de
+uma fonte não documentada**.
 
 ## Ajustes que você precisa fazer à mão
 
