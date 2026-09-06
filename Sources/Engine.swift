@@ -51,6 +51,30 @@ final class Engine {
     private var lastPlayerItem: String?
     private var lastCachedKey: String?
 
+    /// The rate change the next track will need, made before that track starts.
+    ///
+    /// The notification only arrives once the new track is already playing, so a change
+    /// made then lands in its first second: about 0.85 s of silence, 730 ms of which is the
+    /// DAC relocking its clock — a fixed cost of the hardware, measured the same in every
+    /// direction. Doing it before the boundary moves that silence into the tail of the
+    /// track that is ending, and the new one starts already at its own rate.
+    ///
+    /// The price is that the tail plays resampled. The margin is what buys the safety:
+    /// the pause Apple Event has taken anywhere from 77 to 439 ms, and a switch that
+    /// slipped past the boundary would land in exactly the place this avoids.
+    private var preSwitchTimer: DispatchSourceTimer?
+    private var preSwitchActivity: NSObjectProtocol?
+    private static let preSwitchMargin: TimeInterval = 2.5
+
+    /// The track whose successor's rate is already set on the device.
+    ///
+    /// Once that has happened the current track's own rate must not be applied again until
+    /// the track really changes. Our own pause and play make Music emit a notification, and
+    /// the track it names is still the one ending — acting on it put the device back on the
+    /// old rate and cost two further changes instead of none, which is how the first
+    /// version of this made things worse rather than better.
+    private var preSwitchedFor: String?
+
     /// What the player told us about the track being played now, if anything.
     ///
     /// Without this, a second look at the same track saw the item it had already used,
@@ -238,7 +262,7 @@ final class Engine {
         next.problem = nil
         next.playing = true
 
-        let snapshot: (state: String, track: MusicTrack?, hygiene: MusicHygiene)
+        let snapshot: (state: String, track: MusicTrack?, hygiene: MusicHygiene, upNext: UpNext?)
         do {
             snapshot = try Log.timed("snapshot") { try MusicBridge.snapshot() }
         } catch {
@@ -287,7 +311,16 @@ final class Engine {
            let format = Log.timed("resolveFormat", { resolveFormat(for: track) }) {
             Log.write("resolved: \(format.summary) via \(format.source.rawValue); device at \(rateLabel(device.nominalSampleRate))")
             next.detected = format
-            applyFormat(format, to: device, into: &next)
+            if preSwitchedFor == trackKey {
+                Log.write("holding the rate prepared for the next track")
+            } else {
+                applyFormat(format, to: device, into: &next)
+            }
+        }
+
+        if let track = snapshot.track {
+            schedulePreSwitch(after: track, upNext: snapshot.upNext,
+                              on: settings.resolveTargetDevice() ?? device)
         }
 
         let fresh = settings.resolveTargetDevice() ?? device
@@ -306,6 +339,7 @@ final class Engine {
         let key = track.map { "\($0.name)|\($0.artist)" } ?? "-"
         guard key != trackKey else { return }
         trackKey = key
+        preSwitchedFor = nil
         missNotedForTrack = false
         playerAttemptsMade = 0
         playerFormatForTrack = nil
@@ -369,6 +403,120 @@ final class Engine {
         }
 
         return TrackFormat.resolve(track: track, fallbackRate: settings.fallbackRate)
+    }
+
+    /// Prepares the next track's rate while this one is still playing, when everything
+    /// needed is known: what comes next, that its format was learned on an earlier play,
+    /// and how long is left. Any of those missing means preparing nothing.
+    private func schedulePreSwitch(after track: MusicTrack, upNext: UpNext?, on device: AudioDevice) {
+        cancelPreSwitch()
+
+        guard settings.prepareNextTrack, settings.matchSampleRate, settings.seamlessSwitch else { return }
+        // Pausing is what makes this cost no audio. Without it the switch would eat about
+        // 0.74 s of the tail instead of inserting silence, which is a worse trade.
+        guard let upNext else { return }
+
+        let key = Settings.cacheKey(name: upNext.name, artist: upNext.artist)
+        guard let format = settings.cachedFormat(for: key) else {
+            Log.write("pre-switch: \(upNext.name) never heard, nothing to prepare")
+            return
+        }
+        guard abs(device.nominalSampleRate - format.sampleRate) >= 1 else { return }
+        guard device.supportedSampleRates.contains(where: { abs($0 - format.sampleRate) < 1 }) else { return }
+
+        let remaining = track.duration - track.position
+        let delay = remaining - Self.preSwitchMargin
+        guard track.duration > 0, delay > 0 else {
+            Log.write("pre-switch: only \(String(format: "%.1f", remaining))s left, too late to prepare")
+            return
+        }
+
+        Log.write("pre-switch: \(upNext.name) needs \(rateLabel(format.sampleRate)), device at "
+                  + "\(rateLabel(device.nominalSampleRate)); in \(String(format: "%.1f", delay))s")
+        arm(format, name: upNext.name, duration: track.duration, after: delay)
+    }
+
+    /// A strict timer, and an activity assertion while one is pending.
+    ///
+    /// This is a menu bar app with no windows, and the coalescing that lets such an app
+    /// sleep between wakeups is exactly what a deadline like this one cannot tolerate. The
+    /// first version used a plain `asyncAfter` and the boundary went by without it ever
+    /// running — it then fired inside the pause the ordinary path had already started, and
+    /// returned without a word.
+    private func arm(_ format: TrackFormat, name: String, duration: Double, after delay: TimeInterval) {
+        let expected = trackKey
+        cancelPreSwitch()
+
+        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: work)
+        timer.schedule(deadline: .now() + delay, leeway: .milliseconds(50))
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.endPreSwitchActivity()
+            self.runPreSwitch(format, name: name, duration: duration, expecting: expected)
+        }
+        preSwitchActivity = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiatedAllowingIdleSystemSleep,
+            reason: "Preparing the next track's sample rate")
+        preSwitchTimer = timer
+        timer.resume()
+    }
+
+    private func cancelPreSwitch() {
+        preSwitchTimer?.cancel()
+        preSwitchTimer = nil
+        endPreSwitchActivity()
+    }
+
+    private func endPreSwitchActivity() {
+        guard let preSwitchActivity else { return }
+        ProcessInfo.processInfo.endActivity(preSwitchActivity)
+        self.preSwitchActivity = nil
+    }
+
+    private func runPreSwitch(_ format: TrackFormat, name: String, duration: Double,
+                              expecting expected: String?) {
+        // The boundary may already have been crossed — a manual skip, or a track shorter
+        // than Music reported. Switching now would put the silence inside the new track,
+        // which is the whole thing this exists to avoid.
+        guard trackKey == expected else {
+            Log.write("pre-switch: track already changed, standing down")
+            return
+        }
+        guard Date() >= suppressUntil else {
+            Log.write("pre-switch: fired inside our own pause window, too late — standing down")
+            return
+        }
+
+        // Scrubbing the progress bar fires no notification, so the time left is worth
+        // asking about rather than assuming: dragging backwards would otherwise put the
+        // silence in the middle of the music.
+        let position = (try? MusicBridge.position()) ?? -1
+        if position >= 0, duration > 0 {
+            let remaining = duration - position
+            guard remaining <= Self.preSwitchMargin + 2 else {
+                let delay = remaining - Self.preSwitchMargin
+                Log.write("pre-switch: \(String(format: "%.1f", remaining))s left, not yet — "
+                          + "waiting another \(String(format: "%.1f", delay))s")
+                arm(format, name: name, duration: duration, after: delay)
+                return
+            }
+        }
+
+        guard let device = settings.resolveTargetDevice() else {
+            Log.write("pre-switch: no target device, standing down")
+            return
+        }
+        guard abs(device.nominalSampleRate - format.sampleRate) >= 1 else {
+            Log.write("pre-switch: device already at \(rateLabel(format.sampleRate)), nothing to prepare")
+            return
+        }
+
+        Log.write("pre-switch: applying \(format.summary) for \(name) before it starts")
+        preSwitchedFor = trackKey
+        var next = status
+        applyFormat(format, to: device, into: &next)
+        next.deviceRate = (settings.resolveTargetDevice() ?? device).nominalSampleRate
+        publish(next)
     }
 
     private func applyFormat(_ format: TrackFormat, to device: AudioDevice,
@@ -449,6 +597,10 @@ final class Engine {
 
     private func handleStopped() {
         guard Date() >= suppressUntil else { return }
+        cancelPreSwitch()
+        // Cleared so that resuming this same track puts it back on its own rate: the
+        // preparation only makes sense while the track is running out.
+        preSwitchedFor = nil
         work.async { [weak self] in
             guard let self else { return }
             var next = self.status

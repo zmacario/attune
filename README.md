@@ -108,6 +108,63 @@ a cada troca. A pausa custa ~0,12 s a mais de silêncio e não perde nada. As du
 parecidas justamente porque têm quase a mesma duração; só uma delas mantém a música
 inteira.
 
+### Ajustar a taxa da próxima faixa antes
+
+Ligado por padrão. Resolve um incômodo específico: a troca de taxa cai **no primeiro
+segundo da faixa nova**.
+
+A causa é que ninguém pode agir antes. A notificação do Music chega quando a faixa nova já
+começou a tocar; daí em diante são ~0,39 s de Apple Event da pausa e **730 ms de relock do
+DAC** — custo fixo, medido em 30 trocas da mesma sessão entre 724 e 740 ms, igual em
+qualquer direção (44,1↔48, 44,1↔96, 48↔96). Não há ajuste que encurte isso.
+
+Mas o cache sabe o formato de uma faixa sem tocá-la, e o Music diz qual é a próxima da fila
+e quanto falta para a atual acabar. Com isso o app pode trocar a taxa **antes do fim da
+faixa atual**: quando a próxima começa, o DAC já está certo e ele registra
+`already at 96 kHz, nothing to do` — a faixa nova entra limpa desde a primeira nota.
+
+Ele não elimina o silêncio, **muda ele de lugar**: sai do começo da faixa nova e vai para perto do fim
+da anterior, onde interrompe algo que já foi ouvido. Nada de áudio se perde, porque a pausa
+preserva tudo. Em troca, os últimos ~2,5 s da faixa que termina tocam reamostrados, já na
+taxa da próxima. A margem de 2,5 s não é arbitrária: o Apple Event da pausa já levou de 77 a
+439 ms, e uma troca que escorregasse para depois da virada cairia exatamente no lugar que
+este recurso existe para evitar.
+
+Ele só age quando **tudo** é conhecido, e não faz nada quando falta qualquer peça:
+
+| condição | por quê |
+|---|---|
+| *Pausar durante a troca de taxa* ligado | é a pausa que faz isso não custar áudio |
+| modo aleatório desligado | com shuffle, a próxima por índice não é a que toca |
+| a próxima faixa é identificável | rádio e outras fontes não têm playlist |
+| o formato dela já está no cache | faixa nunca ouvida não tem o que antecipar |
+| sobra mais que 2,5 s | tarde demais para preparar |
+
+Se a faixa mudar antes da hora marcada — você pulou, ou o Music adiantou — a antecipação se
+recolhe sem fazer nada (`pre-switch: track already changed, standing down`).
+
+Duas armadilhas custaram uma versão cada, e as duas estão no código como comentário:
+
+**A antecipação se desfazia sozinha.** O `play()` dela faz o Music emitir uma notificação, e
+a faixa que essa notificação nomeia ainda é a que está terminando. O app olhava, via o DAC
+na taxa "errada" e corrigia de volta — três trocas em vez de uma, pior que sem o recurso.
+Agora ele segura a configuração preparada até a faixa realmente virar
+(`holding the rate prepared for the next track`).
+
+**O temporizador não disparava.** Este é um app de barra de menu sem janelas, e o
+adiamento que o macOS aplica a apps nesse estado engoliu um `asyncAfter` inteiro: ele não
+rodou na hora marcada e acabou executando dentro da pausa que o caminho comum já tinha
+começado. Agora é um `DispatchSource` estrito com folga de 50 ms, mais um `beginActivity`
+enquanto há antecipação pendente. Medido depois: disparos com 9 e 33 ms de atraso.
+
+Medido na dupla que originou tudo, *Mystical Magical* (44,1) → *In The Light Of Day* (96):
+
+| | antes | com o recurso |
+|---|---|---|
+| trocas de taxa | 1, no começo da faixa nova | 1, no fim da anterior |
+| silêncio | 0,85 s na primeira nota | 0,89 s, 2,4 s antes da virada |
+| início da faixa nova | interrompido | intacto |
+
 ## O menu
 
 ```
@@ -119,6 +176,7 @@ Wire: 96 kHz 32-bit int (packed) 2ch                 ← o que sai no barramento
 ☑ Match the track's sample rate                      ← clicar não fecha o menu
 ☑ Use the deepest bit format
 ☑ Pause during rate changes
+☑ Set the next track's rate in advance
 ☐ Restore previous output when Music stops
 ─────────────────────────────────────────
 Output device                                     ▸   ← DACs num grupo, atualizado ao vivo

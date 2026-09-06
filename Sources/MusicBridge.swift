@@ -7,6 +7,13 @@ struct MusicTrack {
     var path: String?        // nil for Apple Music streaming — nothing on disk to inspect
     var sampleRate: Int      // Music's own metadata; 0 when unknown
     var position: Double
+    var duration: Double     // 0 when Music does not say
+}
+
+/// The track Music will play after this one, when that is knowable.
+struct UpNext {
+    let name: String
+    let artist: String
 }
 
 struct MusicHygiene {
@@ -69,6 +76,12 @@ enum MusicBridge {
     }
 
     @discardableResult
+    /// AppleScript formats reals with the system separator, which is not always a dot —
+    /// this machine reports `24,968`, which `Double(_:)` reads as nothing at all.
+    private static func real(_ text: String) -> Double? {
+        Double(text.replacingOccurrences(of: ",", with: "."))
+    }
+
     private static func run(_ source: String) throws -> String {
         guard isRunning else { throw BridgeError.notRunning }
         return try queue.sync {
@@ -89,7 +102,8 @@ enum MusicBridge {
 
     /// One round trip for everything we need: player state, track identity, native rate,
     /// file path, plus the two settings that would silently break bit-perfect.
-    static func snapshot() throws -> (state: String, track: MusicTrack?, hygiene: MusicHygiene) {
+    static func snapshot() throws -> (state: String, track: MusicTrack?,
+                                      hygiene: MusicHygiene, upNext: UpNext?) {
         guard let source = snapshotScript else {
             throw BridgeError.scriptFailed(localized("music.scriptMissing"))
         }
@@ -103,17 +117,22 @@ enum MusicBridge {
             artist: fields[2],
             path: fields[4].isEmpty ? nil : fields[4],
             sampleRate: Int(fields[3]) ?? 0,
-            position: Double(fields[5]) ?? 0)
+            position: real(fields[5]) ?? 0,
+            duration: fields.count > 8 ? (real(fields[8]) ?? 0) : 0)
 
-        return (fields[0], track, hygiene)
+        // Absent whenever Music cannot say what comes next — shuffle on, no playlist, or
+        // the last track. The caller prepares nothing rather than preparing the wrong rate.
+        let upNext = fields.count > 11 && !fields[10].isEmpty
+            ? UpNext(name: fields[10], artist: fields[11]) : nil
+
+        return (fields[0], track, hygiene, upNext)
     }
 
     /// Where playback is, in seconds. Used to tell whether Music keeps running while the
     /// device reconfigures — if it does, that stretch of the music is simply lost.
     static func position() throws -> Double {
         let text = try run(#"tell application id "com.apple.Music" to get player position as text"#)
-        // AppleScript formats reals with the system separator, which is not always a dot.
-        return Double(text.replacingOccurrences(of: ",", with: ".")) ?? -1
+        return real(text) ?? -1
     }
 
     static func pause() throws { try run(#"tell application id "com.apple.Music" to pause"#) }

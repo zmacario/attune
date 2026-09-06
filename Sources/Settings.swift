@@ -21,6 +21,16 @@ final class Settings {
         set { defaults.set(newValue, forKey: "matchSampleRate") }
     }
 
+    /// Set the next track's rate before it starts, when it is known in advance.
+    ///
+    /// It does not remove the gap a rate change costs — it moves it out of the new track's
+    /// first note and into the tail of the one ending. Judged better by ear on the pair
+    /// that prompted it, so it is on; a listener who disagrees turns it off.
+    var prepareNextTrack: Bool {
+        get { bool("prepareNextTrack", default: true) }
+        set { defaults.set(newValue, forKey: "prepareNextTrack") }
+    }
+
     /// Pause, switch, rewind to the top of the track, resume — avoids the click you get
     /// when the HAL restarts IO mid-stream.
     var seamlessSwitch: Bool {

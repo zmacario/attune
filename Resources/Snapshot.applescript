@@ -14,6 +14,10 @@ tell application id "com.apple.Music"
     set trackRate to "0"
     set trackPath to ""
     set trackPosition to "0"
+    set trackDuration to "0"
+    set shuffleOn to "false"
+    set nextName to ""
+    set nextArtist to ""
 
     try
         set theTrack to current track
@@ -31,9 +35,37 @@ tell application id "com.apple.Music"
         try
             set trackPosition to (get player position) as text
         end try
+        try
+            set trackDuration to (get duration of theTrack) as text
+        end try
+    end try
+
+    try
+        set shuffleOn to (get shuffle enabled) as text
+    end try
+
+    -- What plays after this one, so its rate can be set before it starts. Only knowable in
+    -- playlist order: with shuffle on the next index is not what comes, so nothing is
+    -- reported rather than something wrong. Radio and other sources have no playlist at
+    -- all, and fall through the same way.
+    set repeatMode to "off"
+    try
+        set repeatMode to (song repeat as text)
+    end try
+
+    try
+        if shuffleOn is "false" and repeatMode is not "one" then
+            set thePlaylist to current playlist
+            set theNextTrack to track ((index of (current track)) + 1) of thePlaylist
+            set nextName to (get name of theNextTrack)
+            try
+                set nextArtist to (get artist of theNextTrack)
+            end try
+        end if
     end try
 
     return playerStateText & linefeed & trackName & linefeed & trackArtist & linefeed & ¬
         trackRate & linefeed & trackPath & linefeed & trackPosition & linefeed & ¬
-        musicVolume & linefeed & eqIsOn
+        musicVolume & linefeed & eqIsOn & linefeed & trackDuration & linefeed & ¬
+        shuffleOn & linefeed & nextName & linefeed & nextArtist
 end tell

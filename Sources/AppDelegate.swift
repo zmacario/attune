@@ -158,6 +158,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
              { [unowned self] in settings.maximizeBitDepth }, { [unowned self] in toggleDepth() }),
             (localized("menu.restartOnChange"),
              { [unowned self] in settings.seamlessSwitch }, { [unowned self] in toggleSeamless() }),
+            (localized("menu.prepareNext"),
+             { [unowned self] in settings.prepareNextTrack }, { [unowned self] in togglePrepare() }),
             (localized("menu.restoreOnStop"),
              { [unowned self] in settings.restoreOnStop }, { [unowned self] in toggleRestore() }),
         ]
@@ -285,6 +287,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleMatch()    { settings.matchSampleRate = !settings.matchSampleRate; Engine.shared.reapply() }
     @objc private func toggleDepth()    { settings.maximizeBitDepth = !settings.maximizeBitDepth; Engine.shared.reapply() }
     @objc private func toggleSeamless() { settings.seamlessSwitch = !settings.seamlessSwitch }
+    // Re-runs the track so turning this on arms the transition that is already approaching,
+    // instead of only counting from the next track onwards.
+    @objc private func togglePrepare()  { settings.prepareNextTrack = !settings.prepareNextTrack; Engine.shared.reapply() }
     @objc private func toggleRestore()  { settings.restoreOnStop = !settings.restoreOnStop }
     @objc private func reapply()        { Engine.shared.reapply() }
 
