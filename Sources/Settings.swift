@@ -145,10 +145,20 @@ final class Settings {
                            source: .cache)
     }
 
-    /// Only formats the player itself reported are worth remembering: caching a guess would
-    /// apply it instantly on every later play, which is worse than guessing once.
+    /// Only exact readings are worth remembering: caching a guess would apply it instantly
+    /// on every later play, which is worse than guessing once.
+    ///
+    /// The player is one. A plain audio file is another — it holds one format, read from
+    /// the container itself, with no variant to choose between. `.download` is not: a
+    /// `.movpkg` carries several HLS variants and reading it cannot tell which one Music
+    /// picked, which is where Atmos lives. `.metadata` and `.fallback` are guesses outright.
+    ///
+    /// Local files matter here because the player's log says nothing about them — measured,
+    /// not assumed — so without this a library of imported music never fills the cache, and
+    /// the pre-switch, which needs a cached format to prepare, never arms at all.
     func remember(_ format: TrackFormat, for key: String) {
-        guard !key.isEmpty, format.source == .player, format.sampleRate > 0 else { return }
+        guard !key.isEmpty, format.sampleRate > 0,
+              format.source == .player || format.source == .file else { return }
         let value = "\(Int(format.sampleRate))|\(format.bitDepth.map(String.init) ?? "")"
 
         // Read, decide and write back under one lock. Two steps would let a second writer

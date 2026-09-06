@@ -421,6 +421,10 @@ final class Engine {
             Log.write("no player report; using what was learned before: \(remembered.summary)")
             return remembered
         }
+        // Offered rather than decided here: `remember` keeps what is exact and drops the
+        // rest. Without this the file path never reached the cache at all, so a library the
+        // player says nothing about could not be prepared ahead.
+        if let resolved, let key = trackKey { settings.remember(resolved, for: key) }
         return resolved
     }
 
