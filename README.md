@@ -508,7 +508,51 @@ that window: after it, a correction would be a cut in the middle of the music.
 If the log does not answer, the app switches the reading off, records why, and reverts to the
 earlier behaviour. The check is made once, with a question that has to have an answer **and**
 be about something recent: asking whether "any entry" can be read answers yes using the app's
-own entries.
+own entries. Five streamed tracks in a row with nothing parsed also stands the reading down.
+
+That last count only advances on streamed tracks, since a download resolves from its file
+without waiting and so never learns whether the player would have spoken. A library of
+downloads would therefore keep a `log stream` running past the point of usefulness — no
+worse audio, just a subprocess earning nothing.
+
+#### The two messages, and why this one
+
+Music's playback is described twice in the system log, by two different publishers:
+
+```
+[com.apple.coremedia:player]  fpfs_ReportAudioPlaybackThroughFigLog: … <0x…|I/WR.335>:
+                              [AudioChannels 2] [Rendition Lossless] [SampleRate 96000] [BitDepth 24]
+
+[com.apple.Music:ampplay]     play> cm>> mediaFormatinfo … asbdFormatID = qlac, lossless,
+                              asbdNumChannels = 2, asbdSampleRate = 44.1 kHz
+```
+
+CoreMedia's is the one read, for three reasons. It is the only one carrying the per-track
+token — `I/WR.335` — without which reports can only be matched to tracks by time, the method
+that made neighbouring tracks swap formats when skipping quickly. It reports what was
+actually decoded, which is the only way to know whether an Atmos variant is playing rather
+than merely present. And its bit depth is dependable: over one fifteen-minute stretch,
+`BitDepth` appeared six times against six `SampleRate`, always paired, while Music's own
+message omitted the depth entirely on most lines.
+
+Music's is read as a **reserve**, consulted only when CoreMedia has said nothing at all for
+the current track — never alongside it, because a report with no token would be taken as
+belonging to whatever is playing. It also never wakes the app; it is read when asked.
+
+The reserve is worth having because the two move independently: CoreMedia's message travels
+with macOS, Music's with Music, so one changing shape need not take the other with it.
+LosslessSwitcher has read the Music one since 2022, and both were still being emitted, side
+by side, on the macOS 15.7.9 and Music 1.5.6 this was written against.
+
+Two details of that line are easy to get wrong. It gives the rate in kHz with a decimal, and
+`44.1 * 1000` is `44100.000000000007` in binary floating point — a value no list of plausible
+rates contains, so the multiplication is rounded. And `sdBitRate = 768 kbps` sits near
+`sdBitDepth` in the Atmos variant, close enough to catch a careless pattern.
+
+**None of this varies with language.** The same query under `en_US`, `ar_EG`, `tr_TR` and
+`de_DE` returns byte-identical output, timestamps included: these are developer strings
+inside `os_log` format literals, not user-facing text, and `process == "Music"` matches the
+executable's name, which stays `Music` though the bundle carries 42 localized ones.
 
 #### If the log stops working
 

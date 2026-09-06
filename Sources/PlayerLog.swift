@@ -27,6 +27,22 @@ struct PlayerFormat {
 /// paying for a query on every track forever.
 enum PlayerLog {
     private static let marker = "ReportAudioPlaybackThroughFig"
+
+    /// Music's own account of the same playback, from a different subsystem.
+    ///
+    /// Kept strictly as a reserve. It carries no per-item token, so it can only be
+    /// attributed by time — the method that made neighbouring tracks swap formats when
+    /// skipping quickly — and it usually omits the bit depth. What it does have is an
+    /// independent publisher: the good message comes from CoreMedia and moves with macOS,
+    /// this one comes from Music and moves with Music, so one changing shape need not
+    /// take the other with it. LosslessSwitcher has read this one since 2022, which is
+    /// the closest thing to evidence that neither is about to vanish.
+    private static let fallbackMarker = "asbdSampleRate"
+
+    private static var predicate: String {
+        "process == \"Music\" AND (eventMessage CONTAINS \"\(marker)\""
+            + " OR eventMessage CONTAINS \"\(fallbackMarker)\")"
+    }
     private static let missLimit = 5
 
     /// Plausible audio rates. A parse that yields anything else is a parse that went wrong.
@@ -42,6 +58,7 @@ enum PlayerLog {
 
     private static let lock = NSLock()
     private static var misses = 0
+    private static var fallbackLatest: (format: PlayerFormat, observedAt: Date)?
     private static var givenUp = false
     private static var store: OSLogStore?
     private static var method: Method = .undetermined
@@ -147,12 +164,20 @@ enum PlayerLog {
         let current = method
         let streaming = stream?.isRunning == true
         let buffered = latest
+        let reserve = fallbackLatest
         lock.unlock()
 
         if streaming {
             // An in-memory read: nothing to pay, and never stale.
-            guard let buffered, buffered.observedAt >= date else { return nil }
-            return buffered.format
+            if let buffered, buffered.observedAt >= date { return buffered.format }
+            // Only once CoreMedia has said nothing at all for this track. Asking both and
+            // taking whichever spoke last would put a message with no item token beside one
+            // that has it, and the engine reads an empty token as "always new".
+            if let reserve, reserve.observedAt >= date {
+                Log.write("player: nothing from CoreMedia; falling back to Music's own report")
+                return reserve.format
+            }
+            return nil
         }
 
         switch current {
@@ -168,7 +193,7 @@ enum PlayerLog {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/log")
         task.arguments = ["stream", "--style", "compact", "--level", "debug",
-                          "--predicate", "process == \"Music\" AND eventMessage CONTAINS \"\(marker)\""]
+                          "--predicate", predicate]
         let output = Pipe()
         task.standardOutput = output
         task.standardError = FileHandle.nullDevice
@@ -211,12 +236,20 @@ enum PlayerLog {
         lock.unlock()
 
         for line in lines where !line.isEmpty {
-            guard let format = parse(line) else { continue }
-            lock.lock()
-            let isNewItem = latest?.format.item != format.item
-            latest = (format, Date())
-            lock.unlock()
-            if isNewItem { onNewFormat?() }
+            if let format = parse(line) {
+                lock.lock()
+                let isNewItem = latest?.format.item != format.item
+                latest = (format, Date())
+                lock.unlock()
+                if isNewItem { onNewFormat?() }
+            } else if let format = parseFallback(line) {
+                lock.lock()
+                fallbackLatest = (format, Date())
+                lock.unlock()
+                // Deliberately does not wake the engine. This source cannot say which track
+                // it describes, so a report arriving mid-track would be applied to whatever
+                // is playing. It is read when asked, not pushed.
+            }
         }
     }
 
@@ -236,10 +269,10 @@ enum PlayerLog {
         lock.unlock()
         guard let store else { return nil }
 
-        let predicate = NSPredicate(format: "process == %@ AND eventMessage CONTAINS %@",
-                                    "Music", marker)
+        let filter = NSPredicate(format: "process == %@ AND (eventMessage CONTAINS %@"
+                                 + " OR eventMessage CONTAINS %@)", "Music", marker, fallbackMarker)
         guard let entries = try? store.getEntries(at: store.position(date: date),
-                                                  matching: predicate) else { return nil }
+                                                  matching: filter) else { return nil }
         var latest: PlayerFormat?
         for case let entry as OSLogEntryLog in entries {
             if let format = parse(entry.composedMessage) { latest = format }
@@ -251,7 +284,7 @@ enum PlayerLog {
     private static func viaLogTool(seconds: TimeInterval) -> PlayerFormat? {
         guard let text = runLogTool(arguments: [
             "show", "--last", "\(Int(seconds.rounded(.up)))s", "--info", "--style", "compact",
-            "--predicate", "process == \"Music\" AND eventMessage CONTAINS \"\(marker)\"",
+            "--predicate", predicate,
         ]) else { return nil }
 
         var latest: PlayerFormat?
@@ -309,6 +342,39 @@ enum PlayerLog {
         pattern: #"\[Rendition (\w+)\].*?\[SampleRate (\d+)\].*?\[BitDepth (\d+)\]"#)
     private static let channelField = try! NSRegularExpression(pattern: #"\[AudioChannels (\d+)\]"#)
     private static let itemField = try! NSRegularExpression(pattern: #"<0x[0-9a-f]+\|([^>]+)>"#)
+
+    private static let fallbackRate = try! NSRegularExpression(
+        pattern: #"asbdSampleRate = ([0-9]+(?:\.[0-9]+)?) kHz"#)
+    private static let fallbackChannels = try! NSRegularExpression(pattern: #"asbdNumChannels = ([0-9]+)"#)
+    private static let fallbackDepth = try! NSRegularExpression(pattern: #"sdBitDepth = ([0-9]+)"#)
+
+    /// Music's own line, used only when CoreMedia's is absent.
+    ///
+    /// It states the rate in kHz with a decimal — "44.1 kHz" — so the multiplication has to
+    /// be rounded: 44.1 is not exactly representable, and 44.1 * 1000 lands on
+    /// 44100.000000000007, which no list of plausible rates contains. The bit depth is
+    /// usually missing entirely, which costs nothing: the wire format is raised to the
+    /// device's deepest anyway. There is no item token to be had.
+    static func parseFallback(_ message: String) -> PlayerFormat? {
+        let range = NSRange(message.startIndex..., in: message)
+        guard let match = fallbackRate.firstMatch(in: message, range: range),
+              let kHz = message.substring(match, 1).flatMap(Double.init) else { return nil }
+        let rate = (kHz * 1000).rounded()
+        guard plausibleRates.contains(rate) else { return nil }
+
+        // Mapped onto the vocabulary CoreMedia uses, so the rest of the app cannot tell
+        // which source answered.
+        let rendition = message.contains("Dolby Atmos") ? "Multichannel"
+                      : message.contains("lossless") ? "Lossless" : "Stereo"
+
+        return PlayerFormat(rendition: rendition,
+                            sampleRate: rate,
+                            bitDepth: fallbackDepth.firstMatch(in: message, range: range)
+                                .flatMap { message.substring($0, 1) }.flatMap(Int.init),
+                            channels: fallbackChannels.firstMatch(in: message, range: range)
+                                .flatMap { message.substring($0, 1) }.flatMap(Int.init),
+                            item: "")
+    }
 
     static func parse(_ message: String) -> PlayerFormat? {
         let range = NSRange(message.startIndex..., in: message)
