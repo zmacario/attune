@@ -50,6 +50,14 @@ final class Engine {
     /// apart, and skipping quickly made neighbouring tracks swap formats.
     private var lastPlayerItem: String?
 
+    /// What the player told us about the track being played now, if anything.
+    ///
+    /// Without this, a second look at the same track saw the item it had already used,
+    /// read that as "nothing new", and fell through to the fallback — overwriting a
+    /// correct reading with a guess. No new report means the answer has not changed, not
+    /// that there is no answer.
+    private var playerFormatForTrack: TrackFormat?
+
     /// How many times to ask the player before giving up and guessing.
     ///
     /// Bounded by attempts rather than elapsed time, because the cost is per read and some
@@ -180,8 +188,13 @@ final class Engine {
     func reapply() { schedule(after: 0) }
 
     private func handlePlaying() {
-        guard Date() >= suppressUntil else {
-            Log.write("handlePlaying: suppressed (our own pause/play)")
+        // Suppression exists to ignore the notifications our own pause and play cause. It
+        // must defer, not discard: a genuine event landing inside the window — the player
+        // reporting the next track's format, say — would otherwise be dropped, and with
+        // the track already settled nothing would ever ask again.
+        if Date() < suppressUntil {
+            Log.write("handlePlaying: deferred past our own pause/play")
+            schedule(after: suppressUntil.timeIntervalSinceNow + 0.05)
             return
         }
 
@@ -259,6 +272,7 @@ final class Engine {
         trackKey = key
         missNotedForTrack = false
         playerAttemptsMade = 0
+        playerFormatForTrack = nil
         let position = min(track?.position ?? 0, 120)   // bound the log window we ask for
         trackStartedAt = Date().addingTimeInterval(-position)
     }
@@ -272,16 +286,27 @@ final class Engine {
 
         if streaming, PlayerLog.isAvailable {
             let searchFrom = trackStartedAt.addingTimeInterval(-Self.playerLookback)
-            if let reported = PlayerLog.latestFormat(since: searchFrom),
+            let buffered = PlayerLog.latestFormat(since: searchFrom)
+            Log.write("player check: buffered=\(buffered.map { "\($0.item) \(rateLabel($0.sampleRate))" } ?? "none")"
+                      + " lastUsed=\(lastPlayerItem ?? "-") attempts=\(playerAttemptsMade)")
+            // Nothing newer than what this track was already resolved from: keep it.
+            if let already = playerFormatForTrack,
+               buffered.map({ $0.item == lastPlayerItem }) ?? true {
+                return already
+            }
+
+            if let reported = buffered,
                reported.item.isEmpty || reported.item != lastPlayerItem {
                 lastPlayerItem = reported.item
                 PlayerLog.noteHit()
                 Log.write("player reports \(reported.rendition) \(rateLabel(reported.sampleRate))"
                           + " \(reported.bitDepth.map { "\($0)-bit" } ?? "")"
                           + " \(reported.channels.map { "\($0)ch" } ?? "")")
-                return TrackFormat(sampleRate: reported.sampleRate,
-                                   bitDepth: reported.bitDepth,
-                                   source: .player)
+                let format = TrackFormat(sampleRate: reported.sampleRate,
+                                         bitDepth: reported.bitDepth,
+                                         source: .player)
+                playerFormatForTrack = format
+                return format
             }
             playerAttemptsMade += 1
             if playerAttemptsMade < Self.playerAttempts {
