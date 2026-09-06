@@ -88,7 +88,15 @@ final class Settings {
     /// Caller must hold `cacheLock`.
     private func cacheLocked() -> [String: String] {
         if let loadedCache { return loadedCache }
-        let stored = defaults.dictionary(forKey: "formatCache") as? [String: String] ?? [:]
+        var stored = defaults.dictionary(forKey: "formatCache") as? [String: String] ?? [:]
+        // Entries keyed by name and artist cannot be migrated — the text does not say which
+        // recording it meant. Dropped once, and every track relearns on its next play.
+        if defaults.integer(forKey: "formatCacheVersion") < 2 {
+            if !stored.isEmpty { Log.write("format cache: dropping \(stored.count) entries keyed by name") }
+            stored = [:]
+            defaults.set([String: String](), forKey: "formatCache")
+            defaults.set(2, forKey: "formatCacheVersion")
+        }
         loadedCache = stored
         return stored
     }
@@ -99,7 +107,31 @@ final class Settings {
         _ = cacheLocked()
     }
 
-    static func cacheKey(name: String, artist: String) -> String { "\(name)|\(artist)" }
+    /// Keyed by the track itself where possible.
+    ///
+    /// Name and artist do not identify a recording: a library can hold the download and the
+    /// stream of one song, or the album version and the single, under identical text and in
+    /// different formats — 37 such pairs in the library this was written against, one of
+    /// them already sharing a cache entry. Falls back to the text for anything Music will
+    /// not name, such as a catalogue track that was never added to the library.
+    static func cacheKey(id: String?, name: String, artist: String) -> String {
+        if let id, !id.isEmpty { return "id:\(id)" }
+        return "\(name)|\(artist)"
+    }
+
+    /// Music spells the same 64-bit id two ways: AppleScript hands out hex, the playerInfo
+    /// notification a signed decimal of the same bits. One spelling, so both paths agree.
+    static func trackID(fromNotification value: Any?) -> String? {
+        if let number = value as? NSNumber {
+            return String(format: "%016llX", UInt64(bitPattern: number.int64Value))
+        }
+        guard let text = (value as? String)?.trimmingCharacters(in: .whitespaces), !text.isEmpty else {
+            return nil
+        }
+        if let signed = Int64(text) { return String(format: "%016llX", UInt64(bitPattern: signed)) }
+        let hex = text.uppercased()
+        return hex.count == 16 && hex.allSatisfy(\.isHexDigit) ? hex : nil
+    }
 
     func cachedFormat(for key: String) -> TrackFormat? {
         cacheLock.lock()

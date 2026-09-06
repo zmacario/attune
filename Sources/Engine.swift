@@ -221,7 +221,8 @@ final class Engine {
     private func applyRememberedFormat(from info: [AnyHashable: Any]?) {
         guard settings.matchSampleRate,
               let name = info?["Name"] as? String else { return }
-        let key = Settings.cacheKey(name: name, artist: info?["Artist"] as? String ?? "")
+        let key = Settings.cacheKey(id: Settings.trackID(fromNotification: info?["PersistentID"]),
+                                    name: name, artist: info?["Artist"] as? String ?? "")
         guard key != lastCachedKey, let format = settings.cachedFormat(for: key) else { return }
         lastCachedKey = key
 
@@ -336,7 +337,9 @@ final class Engine {
     /// Notices when the track changed, and where its start was. `position` is what puts
     /// the start in the right place when the app launches into a track already playing.
     private func noteTrack(_ track: MusicTrack?) {
-        let key = track.map { "\($0.name)|\($0.artist)" } ?? "-"
+        let key = track.map {
+            Settings.cacheKey(id: $0.persistentID, name: $0.name, artist: $0.artist)
+        } ?? "-"
         guard key != trackKey else { return }
         trackKey = key
         preSwitchedFor = nil
@@ -416,7 +419,7 @@ final class Engine {
         // 0.74 s of the tail instead of inserting silence, which is a worse trade.
         guard let upNext else { return }
 
-        let key = Settings.cacheKey(name: upNext.name, artist: upNext.artist)
+        let key = Settings.cacheKey(id: upNext.persistentID, name: upNext.name, artist: upNext.artist)
         guard let format = settings.cachedFormat(for: key) else {
             Log.write("pre-switch: \(upNext.name) never heard, nothing to prepare")
             return

@@ -15,6 +15,8 @@ tell application id "com.apple.Music"
     set trackPath to ""
     set trackPosition to "0"
     set trackDuration to "0"
+    set trackID to ""
+    set nextID to ""
     set shuffleOn to "false"
     set nextName to ""
     set nextArtist to ""
@@ -37,6 +39,11 @@ tell application id "com.apple.Music"
         end try
         try
             set trackDuration to (get duration of theTrack) as text
+        end try
+        -- Identifies the track itself. Two entries can share a name and an artist while
+        -- being different recordings in different formats; this tells them apart.
+        try
+            set trackID to (get persistent ID of theTrack)
         end try
     end try
 
@@ -61,11 +68,15 @@ tell application id "com.apple.Music"
             try
                 set nextArtist to (get artist of theNextTrack)
             end try
+            try
+                set nextID to (get persistent ID of theNextTrack)
+            end try
         end if
     end try
 
     return playerStateText & linefeed & trackName & linefeed & trackArtist & linefeed & ¬
         trackRate & linefeed & trackPath & linefeed & trackPosition & linefeed & ¬
         musicVolume & linefeed & eqIsOn & linefeed & trackDuration & linefeed & ¬
-        shuffleOn & linefeed & nextName & linefeed & nextArtist
+        shuffleOn & linefeed & nextName & linefeed & nextArtist & linefeed & ¬
+        trackID & linefeed & nextID
 end tell
