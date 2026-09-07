@@ -709,6 +709,18 @@ The thread count varies because nearly all of them are worker threads libdispatc
 reclaims on its own — the app declares only two queues of its own (`attune.engine` and
 `attune.music`) plus the main one, and the CPU time sits almost entirely in the last.
 
+Over 45 minutes of continuous playback the footprint moved from 16 MB to 17, the thread count
+oscillated between 5 and 7, and the open descriptors sat at 38 in all sixteen samples without
+a single one added — which is the number to watch, since the log reader holds a subprocess and
+its pipes.
+
+One thing that reading showed and no threshold would have: while the menu is **open**, the app
+spends around 1.7% CPU rather than 0.07%, because the scrolling header redraws at 30 frames a
+second. It stops the moment the menu closes — the sample straight after went back to the idle
+rate — so it is a cost while you are looking at it, not a leak. `tools/test-soak.sh` reports
+CPU per window rather than cumulative for exactly this reason: cumulative hid the shape, and
+it took subtracting rows by hand to see it at all.
+
 ### Where this was measured
 
 Every number in this README — the cost above, the 730 ms of DAC relock, the Apple Event
@@ -944,6 +956,7 @@ Shows the current rate, the wire format, and everything each output accepts. You
 | `tools/test-cache.sh` | What the cache accepts, how it is keyed, and what it does under contention |
 | `tools/test-player-log.sh` | Both log messages, parsed from verbatim captures, and the stand-down counter |
 | `tools/test-layout.sh` | Renders a menu row per language and asserts which end the checkmark is on |
+| `tools/test-soak.sh` | Samples footprint, threads and descriptors over hours, looking for a trend |
 | `tools/create-signing-identity.sh` | Creates the certificate that preserves the permissions |
 
 Two things worth knowing about the build:
