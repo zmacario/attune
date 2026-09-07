@@ -9,6 +9,42 @@ else goes through CoreAudio's sample rate converter before it gets there.
 Works with any wired DAC. It was written against a Topping DX3 Pro+, which turns up as an
 example here and there, but nothing in the code knows about that device.
 
+## Contents
+
+Long, because it records why things are the way they are as much as what they do.
+The first three sections are all that is needed to run it; [When something looks wrong](#when-something-looks-wrong) is where to go if it is.
+
+- [Requirements](#requirements)
+- [Installing](#installing)
+- [Permissions](#permissions)
+  - [Why rebuilding asks for the permission again](#why-rebuilding-asks-for-the-permission-again)
+- [What it does for each track](#what-it-does-for-each-track)
+  - [Setting the next track's rate in advance](#setting-the-next-tracks-rate-in-advance)
+- [The menu](#the-menu)
+- [Which DAC it uses](#which-dac-it-uses)
+  - [What counts as a DAC](#what-counts-as-a-dac)
+  - [Connection order](#connection-order)
+  - [Plugging and unplugging](#plugging-and-unplugging)
+- [Periodic checking](#periodic-checking)
+- [Launch at login](#launch-at-login)
+- [How it finds the rate](#how-it-finds-the-rate)
+  - [Remembering what has been heard](#remembering-what-has-been-heard)
+  - [Reading the player's log](#reading-the-players-log)
+- [When something looks wrong](#when-something-looks-wrong)
+- [Removing it](#removing-it)
+- [Settings you have to change by hand](#settings-you-have-to-change-by-hand)
+- [How it compares](#how-it-compares)
+- [What this app is not](#what-this-app-is-not)
+- [What it costs to run](#what-it-costs-to-run)
+  - [Where this was measured](#where-this-was-measured)
+- [Volume](#volume)
+- [Languages](#languages)
+  - [Adding a language](#adding-a-language)
+- [The icon](#the-icon)
+- [Diagnostics](#diagnostics)
+- [Layout](#layout)
+- [License](#license)
+
 ## Requirements
 
 | | |
@@ -599,6 +635,49 @@ movpkg with 1 variant(s); Music lossless=true
 Having your library downloaded does not improve quality: it is the same file either way, and
 with the log working both paths reach the same answer. What it buys is **independence from an
 undocumented source**.
+
+## When something looks wrong
+
+| What you see | What it usually is |
+|---|---|
+| The icon is **orange** | Music's own volume is not 100%, or its equaliser is on. Open *Check bit-perfect setup…*, which names the problem and offers to fix both. |
+| The rate never changes | Music may not be reaching the app at all. The menu header says `Nothing playing` when that is so — check **Automation → Music** in System Settings, and see [Permissions](#permissions). |
+| It asks for Media & Apple Music on every rebuild | You are signing ad-hoc. See [Why rebuilding asks again](#why-rebuilding-asks-for-the-permission-again). |
+| The app seems to sit there doing nothing at launch | There is almost certainly a permission dialog waiting behind another window. |
+| Streamed tracks all play at 44.1 kHz | The player log is not being read, and every stream is falling back to the configured guess. `Show recent activity…` records why it stood down. |
+| A rate change interrupts the new track's first second | *Set the next track's rate in advance* is off, or one of the things it needs is missing — shuffle is on, or that track has not been heard before. |
+| The wrong device is being used | Something was chosen in *Output device*, and rule 1 keeps it. `--resolve` prints which rule applied. |
+| It is 192 kHz in Music but 96 on the device | The device cannot do that rate. The menu says so, and `--list-devices` lists what each output accepts. |
+
+`Show recent activity…` in the menu holds the app's recent decisions in plain words, and is
+the first place to look for anything not listed here. [Diagnostics](#diagnostics) goes
+further.
+
+## Removing it
+
+```bash
+rm -rf "/Applications/Attune.app"
+```
+
+That is the app. Three things outlive it:
+
+**Its settings and the format cache**, under the app's preferences domain. The cache is only
+a table of rates and can be dropped without consequence:
+
+```bash
+defaults delete com.macario.attune
+```
+
+**The login item**, if it was ticked. Untick it in the menu before deleting the app, or
+remove it afterwards in **System Settings → General → Login Items**.
+
+**The signing certificate**, if `tools/create-signing-identity.sh` created one. It is called
+`Attune Local` in **Keychain Access**, under *login*, and deleting it is a keychain change
+like any other — it is left to you rather than scripted here.
+
+macOS keeps the permissions you granted, under **Privacy & Security → Automation** and
+**Media & Apple Music**. They do nothing once the app is gone, and reappear as decisions
+already made if you install it again.
 
 ## Settings you have to change by hand
 
