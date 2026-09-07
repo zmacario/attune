@@ -35,7 +35,11 @@ if let menu = NSImage(contentsOfFile: "docs/images/menu.png") {
 }
 image.unlockFocus()
 
+// JPEG, not PNG: GitHub refuses a social preview over 1 MB, and this card is mostly a
+// screenshot — as a PNG it came to 1.3 MB and would have been rejected on upload.
+let path = CommandLine.arguments.last!
 try! NSBitmapImageRep(data: image.tiffRepresentation!)!
-    .representation(using: .png, properties: [:])!
-    .write(to: URL(fileURLWithPath: CommandLine.arguments.last!))
-print("  social-preview.png 1280x640")
+    .representation(using: .jpeg, properties: [.compressionFactor: 0.92])!
+    .write(to: URL(fileURLWithPath: path))
+let size = (try! FileManager.default.attributesOfItem(atPath: path)[.size] as! Int)
+print("  \(path)  1280x640  \(size / 1024) KB\(size < 1_048_576 ? "" : "  — OVER GitHub's 1 MB limit")")
