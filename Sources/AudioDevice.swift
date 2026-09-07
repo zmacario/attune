@@ -240,9 +240,17 @@ struct AudioDevice: Identifiable, Hashable {
 // MARK: - Formatting helpers
 
 /// "44.1 kHz", "192 kHz" — the way a DAC's front panel would say it.
-func rateLabel(_ rate: Double) -> String {
-    rate.truncatingRemainder(dividingBy: 1000) == 0
-        ? "\(Int(rate / 1000)) kHz"
+/// The rate as text. Whole numbers of kHz have no decimal separator to argue about; the
+/// rest do, and the two audiences want different answers.
+///
+/// `forDisplay` follows the reader's locale, so a Brazilian sees "44,1 kHz". The default
+/// does not, because the same text goes into the log, and a log is for searching: an entry
+/// reading "44,1 kHz" would not be found by anyone grepping for "44.1 kHz", and the same
+/// machine would write it differently after a change of region.
+func rateLabel(_ rate: Double, forDisplay: Bool = false) -> String {
+    if rate.truncatingRemainder(dividingBy: 1000) == 0 { return "\(Int(rate / 1000)) kHz" }
+    return forDisplay
+        ? String(format: "%.1f kHz", locale: .current, rate / 1000)
         : String(format: "%.1f kHz", rate / 1000)
 }
 

@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "Attune спрашивает «Музыку», какой трек играет, чтобы установить ваш ЦАП на его частоту дискретизации.";
+"NSAppleMusicUsageDescription" = "Attune читает частоту дискретизации загруженных треков Apple Music, чтобы настроить ваш ЦАП под них.";

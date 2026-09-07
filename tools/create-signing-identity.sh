@@ -53,6 +53,6 @@ if security find-identity -v -p codesigning | grep -q "$NAME"; then
     echo "The first build may ask for permission to use the key — choose Always Allow."
 else
     echo "The certificate did not come out valid for code signing." >&2
-    echo "Use Keychain Access instead — see README → Permissões." >&2
+    echo "Use Keychain Access instead — see README → Permissions." >&2
     exit 1
 fi

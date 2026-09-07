@@ -42,7 +42,6 @@ final class Engine {
     /// since this track started" is the only correlation available.
     private var trackKey: String?
     private var trackStartedAt = Date()
-    private var missNotedForTrack = false
     private var playerAttemptsMade = 0
 
     /// The player item whose format was used for the previous track. A report carrying the
@@ -123,6 +122,8 @@ final class Engine {
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
         Log.write("engine start; version \(version) (\(build)); Music running=\(MusicBridge.isRunning)")
+        Log.write("localization=\(Bundle.main.preferredLocalizations.first ?? "?")"
+                  + " layout=\(interfaceIsRightToLeft ? "RTL" : "LTR")")
         for name in ["com.apple.Music.playerInfo", "com.apple.iTunes.playerInfo"] {
             center.addObserver(self,
                                selector: #selector(playerInfoChanged(_:)),
@@ -341,9 +342,16 @@ final class Engine {
             Settings.cacheKey(id: $0.persistentID, name: $0.name, artist: $0.artist)
         } ?? "-"
         guard key != trackKey else { return }
+        // A track is only fairly judged once it is over. Counting a miss while one plays
+        // would condemn every download, which resolves from its file long before the player
+        // gets round to speaking — which is why this used to be counted for streamed tracks
+        // alone, and why a library of downloads could never stand a dead reader down.
+        if trackKey != nil, playerFormatForTrack == nil, PlayerLog.isAvailable {
+            PlayerLog.noteMiss()
+        }
+
         trackKey = key
         preSwitchedFor = nil
-        missNotedForTrack = false
         playerAttemptsMade = 0
         playerFormatForTrack = nil
         let position = min(track?.position ?? 0, 120)   // bound the log window we ask for
@@ -396,12 +404,6 @@ final class Engine {
                     schedule(after: PlayerLog.suggestedRetryInterval)
                     return nil
                 }
-            }
-            if streaming, !missNotedForTrack {
-                // Once per track, not once per attempt: the window expiring is re-checked
-                // on every later event for the same track.
-                missNotedForTrack = true
-                PlayerLog.noteMiss()
             }
         }
 
@@ -547,7 +549,7 @@ final class Engine {
         let supported = device.supportedSampleRates
         Log.write("applyFormat: want \(rateLabel(format.sampleRate)), device supports \(supported.map { rateLabel($0) }.joined(separator: "/"))")
         guard let rate = supported.first(where: { abs($0 - format.sampleRate) < 1 }) else {
-            status.problem = localized("engine.rateUnsupported", device.name, rateLabel(format.sampleRate))
+            status.problem = localized("engine.rateUnsupported", device.name, rateLabel(format.sampleRate, forDisplay: true))
             return
         }
         guard abs(device.nominalSampleRate - rate) >= 1 else {
@@ -604,7 +606,7 @@ final class Engine {
             suppressUntil = Date().addingTimeInterval(1.0)
         }
 
-        if !ok { status.problem = localized("engine.setRateFailed", rateLabel(rate)) }
+        if !ok { status.problem = localized("engine.setRateFailed", rateLabel(rate, forDisplay: true)) }
     }
 
     /// Nothing to act on. Not a fault: listening through the built-in speakers or a

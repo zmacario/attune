@@ -68,7 +68,10 @@ enum Movpkg {
 
     // MARK: MP4 box parsing
 
-    private static func parse(initSegment data: Data, bitrate: Int) -> MovpkgVariant? {
+    /// Internal rather than private so tools/test-movpkg.sh can feed it damaged bytes
+    /// directly. Everything below reads attacker-shaped input in the sense that matters:
+    /// a truncated or corrupt download must return nil, never bring the app down.
+    static func parse(initSegment data: Data, bitrate: Int) -> MovpkgVariant? {
         var sampleRate: Double = 0
         var codec = "?"
         var bitDepth: Int?
@@ -77,8 +80,11 @@ enum Movpkg {
             let isSampleEntry = parent.hasSuffix("/stsd")
             switch type {
             case "mdhd":
-                // For an audio track the media timescale is the sample rate.
-                let version = data[start + 8]
+                // For an audio track the media timescale is the sample rate. The version
+                // byte is read through the bounds-checked path like everything else: a
+                // box declaring size 8 carries no payload at all, and reading it directly
+                // walked off the end of a truncated download.
+                guard let version = readUInt8(data, at: start + 8) else { break }
                 let offset = version == 0 ? start + 20 : start + 28
                 if let value = readUInt32(data, at: offset) { sampleRate = Double(value) }
 
@@ -92,7 +98,7 @@ enum Movpkg {
 
             case "alac" where !isSampleEntry:
                 // The ALAC magic cookie — byte 17 holds the real bit depth.
-                if size >= 36 { bitDepth = Int(data[start + 17]) }
+                if size >= 36, let depth = readUInt8(data, at: start + 17) { bitDepth = Int(depth) }
 
             default:
                 break
@@ -119,7 +125,9 @@ enum Movpkg {
 
             var size = Int(rawSize)
             if size == 1 {
-                guard let big = readUInt64(data, at: offset + 8) else { return }
+                // A 64-bit size larger than Int.max is not a box, it is a broken file —
+                // and converting it would trap rather than return.
+                guard let big = readUInt64(data, at: offset + 8), big <= UInt64(Int.max) else { return }
                 size = Int(big)
             } else if size == 0 {
                 size = end - offset
@@ -141,6 +149,11 @@ enum Movpkg {
             }
             offset += size
         }
+    }
+
+    private static func readUInt8(_ data: Data, at offset: Int) -> UInt8? {
+        guard offset >= 0, offset < data.count else { return nil }
+        return data[offset]
     }
 
     private static func readUInt32(_ data: Data, at offset: Int) -> UInt32? {

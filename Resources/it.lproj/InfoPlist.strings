@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "Attune chiede a Musica quale brano è in riproduzione per impostare il DAC sulla frequenza di quel brano.";
+"NSAppleMusicUsageDescription" = "Attune legge la frequenza di campionamento dei tuoi brani Apple Music scaricati per impostare il DAC di conseguenza.";

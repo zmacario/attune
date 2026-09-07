@@ -1,0 +1,2 @@
+"NSAppleEventsUsageDescription" = "Attune 会询问“音乐”正在播放哪首曲目，以便将你的 DAC 设置为该曲目的采样率。";
+"NSAppleMusicUsageDescription" = "Attune 会读取你已下载的 Apple Music 曲目的采样率，以便将你的 DAC 设置为与之匹配。";

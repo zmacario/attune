@@ -6,6 +6,16 @@
     <key>CFBundleLocalizations</key>
     <array>
         <string>en</string>
+        <string>zh-Hans</string>
+        <string>hi</string>
+        <string>es</string>
+        <string>ar</string>
+        <string>fr</string>
+        <string>ru</string>
+        <string>de</string>
+        <string>it</string>
+        <string>pl</string>
+        <string>uk</string>
         <string>pt-BR</string>
     </array>
     <key>CFBundleName</key>                     <string>Attune</string>
@@ -14,8 +24,8 @@
     <key>CFBundleIconFile</key>                 <string>AppIcon</string>
     <key>CFBundleIdentifier</key>               <string>com.macario.attune</string>
     <key>CFBundlePackageType</key>              <string>APPL</string>
-    <key>CFBundleShortVersionString</key>       <string>1.4</string>
-    <key>CFBundleVersion</key>                  <string>5</string>
+    <key>CFBundleShortVersionString</key>       <string>1.5</string>
+    <key>CFBundleVersion</key>                  <string>6</string>
     <key>LSMinimumSystemVersion</key>           <string>13.0</string>
     <key>LSUIElement</key>                      <true/>
     <key>NSAppleMusicUsageDescription</key>
