@@ -403,6 +403,26 @@ To see what is inside a track:
 "build/Attune.app/Contents/MacOS/Attune" --inspect ~/Music/Music/Media.localized/...
 ```
 
+This is the app's only hand-written binary reader, and the only place where a defect becomes
+a crash rather than a wrong sample rate — a half-written or truncated download is an
+ordinary thing to find on disk, and the answer to one has to be "I don't know", not a dead
+menu bar. So it is tested against everything it should survive:
+
+```bash
+tools/test-movpkg.sh
+```
+
+Every real package in the library first, which must all still resolve — a crash fixed at the
+cost of a correct answer is not fixed. Then a deterministic corpus of damaged inputs, each
+run in its own process, since only a separate process can tell a crash from a `nil`.
+
+It earned its keep on the first run, on two of the crafted cases rather than any of the
+random ones. A `mdhd` box declaring size 8 carries no payload, and the version byte inside it
+was read without a bounds check. And a 64-bit box size above `Int.max` trapped on conversion
+instead of being rejected as the broken file it announces. Truncation at 100 lengths, a bit
+flipped at every seventh byte of the header, sixty rounds of random corruption and four
+thousand levels of nesting all came back clean.
+
 ### Remembering what has been heard
 
 Where the time goes, measured: resolving costs **3 ms**; the other ~330 are the
@@ -919,6 +939,8 @@ Shows the current rate, the wire format, and everything each output accepts. You
 | `tools/check-localization.py` | Fails the build on a missing translation |
 | `tools/test-switching.sh` | The full verification cycle: reinstall, skip tracks, check the DAC |
 | `tools/test-locale-safety.sh` | Round-trips a cache entry through eight locales and compares the bytes |
+| `tools/test-movpkg.sh` | Parses every real package, then a corpus of damaged ones, each in its own process |
+| `tools/make-damaged-movpkg.py` | Builds that corpus: truncations, bit flips, noise, and hand-made broken boxes |
 | `tools/create-signing-identity.sh` | Creates the certificate that preserves the permissions |
 
 Two things worth knowing about the build:
