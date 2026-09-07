@@ -33,6 +33,7 @@ written.
 | `tools/test-layout.sh` | Renders a menu row per language and asserts which end the checkmark is on |
 | `tools/test-soak.sh` | Samples footprint, threads and descriptors over hours, looking for a trend |
 | `tools/create-signing-identity.sh` | Creates the certificate that preserves the permissions |
+| `tools/make-social-preview.sh` | Draws the card GitHub shows when the repository is linked |
 
 Two things worth knowing about the build:
 
