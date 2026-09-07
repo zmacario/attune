@@ -13,7 +13,7 @@ as the specifier "% g", so a percentage followed by a word is flagged here even
 though the key takes no arguments today. Put it at the end of the sentence, or
 write "%%".
 """
-import pathlib, re, sys
+import pathlib, re, subprocess, sys
 
 SOURCES = pathlib.Path("Sources")
 RESOURCES = pathlib.Path("Resources")
@@ -66,6 +66,14 @@ for lang, table in sorted(entries.items()):
             failed = True
             print(f"{lang}: {key} has {got or 'no specifiers'}, English has {want or 'none'}",
                   file=sys.stderr)
+
+# A syntax error in a .strings file is not a missing key: the whole table fails to load,
+# and every key in that language shows up in the menu as its own name.
+for strings in sorted(RESOURCES.glob("*.lproj/*.strings")):
+    result = subprocess.run(["plutil", "-lint", str(strings)], capture_output=True, text=True)
+    if result.returncode != 0:
+        failed = True
+        print(f"{strings}: {result.stdout.strip() or result.stderr.strip()}", file=sys.stderr)
 
 print(f"localization: {len(used)} keys used, {len(tables)} language(s) — {'FAIL' if failed else 'ok'}")
 sys.exit(1 if failed else 0)

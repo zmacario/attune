@@ -941,9 +941,22 @@ Shows the current rate, the wire format, and everything each output accepts. You
 | `tools/test-locale-safety.sh` | Round-trips a cache entry through eight locales and compares the bytes |
 | `tools/test-movpkg.sh` | Parses every real package, then a corpus of damaged ones, each in its own process |
 | `tools/make-damaged-movpkg.py` | Builds that corpus: truncations, bit flips, noise, and hand-made broken boxes |
+| `tools/test-cache.sh` | What the cache accepts, how it is keyed, and what it does under contention |
+| `tools/test-player-log.sh` | Both log messages, parsed from verbatim captures, and the stand-down counter |
+| `tools/test-layout.sh` | Renders a menu row per language and asserts which end the checkmark is on |
 | `tools/create-signing-identity.sh` | Creates the certificate that preserves the permissions |
 
 Two things worth knowing about the build:
+
+There is no test runner; each of these is a script that exits non-zero. `check-localization.py`
+is the only one the build runs, because it is the only one that costs nothing — the rest
+compile a probe of their own.
+
+Each was written against something that had already gone wrong, and each was then checked by
+putting the defect back and watching it fail. That step matters more than it sounds:
+`test-layout.sh` passed its first regression happily, because it asked the app which way the
+interface read and then checked the checkmark was on that side — a tautology that agreed with
+itself while the mirroring was broken. It now takes the expected side from the caller.
 
 - `build.sh` runs `osacompile` over the AppleScript before packaging. It earns its keep:
   short variable names collide with Music's terminology (`st`, for one, does not compile
