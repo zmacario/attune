@@ -41,5 +41,6 @@ let path = CommandLine.arguments.last!
 try! NSBitmapImageRep(data: image.tiffRepresentation!)!
     .representation(using: .jpeg, properties: [.compressionFactor: 0.92])!
     .write(to: URL(fileURLWithPath: path))
-let size = (try! FileManager.default.attributesOfItem(atPath: path)[.size] as! Int)
-print("  \(path)  1280x640  \(size / 1024) KB\(size < 1_048_576 ? "" : "  — OVER GitHub's 1 MB limit")")
+let bytes = (try! FileManager.default.attributesOfItem(atPath: path)[.size] as! Int)
+print("  \(path)  1280x640  \(bytes / 1024) KB"
+      + (bytes < 1_048_576 ? "" : "  — OVER GitHub's 1 MB limit"))
