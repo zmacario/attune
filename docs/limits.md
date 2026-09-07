@@ -125,7 +125,7 @@ numbers, the relock above all, which is a property of the DAC.
 | Music | 1.5.6 |
 | compiler | Swift 6.1.2 (swiftlang-6.1.2.1.2, clang-1700.0.13.5), target x86_64-apple-macosx15.0 |
 | tooling | Command Line Tools, no Xcode |
-| app | Attune 1.4 (5), signed with a self-signed certificate |
+| app | Attune 1.5 (6), signed with a self-signed certificate |
 
 Outputs present during the tests:
 

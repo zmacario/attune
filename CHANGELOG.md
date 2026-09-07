@@ -2,7 +2,7 @@
 
 Newest first. Each released version is a tag on `main`; the wording is the tag's own.
 
-## Unreleased
+## v1.5 — 7 September 2026
 
 **Twelve languages.** English, the five most spoken in the world by total speakers
 (Mandarin, Hindi, Spanish, Arabic, French), the five largest in Europe those did not cover
