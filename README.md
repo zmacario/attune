@@ -89,17 +89,19 @@ whole.
 
 ## The menu
 
+<img src="docs/images/menu.png" width="342" alt="The Attune menu: DX3 Pro+ at 192 kHz, the wire format, the track and its own format, then the settings.">
+
 ```
-DX3 Pro+ · 96 kHz                                    ← device and current rate
-Wire: 96 kHz 32-bit int (packed) 2ch                 ← what goes out on the wire
-▶ Seven Nation Army — The White Stripes · 24-bit / 192 kHz (download)
+DX3 Pro+ · 192 kHz                                   ← device and current rate
+Wire: 192 kHz 32-bit int (packed) 2ch                ← what goes out on the wire
+▶ Lyin' Eyes — Eagles · 24-bit / 192 kHz (player)     ← the track, and where its format came from
 ─────────────────────────────────────────
 ☑ Route Music to this device
 ☑ Match the track's sample rate                      ← clicking does not close the menu
 ☑ Use the deepest bit format
 ☑ Pause during rate changes
 ☑ Set the next track's rate in advance
-☐ Restore previous output when Music stops
+☑ Restore previous output when Music stops
 ─────────────────────────────────────────
 Output device                                     ▸   ← DACs in a group, updated live
 When the rate is unknown                          ▸

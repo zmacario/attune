@@ -411,7 +411,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showActivity() {
         let entries = Log.recent
         let body = entries.isEmpty ? localized("activity.empty") : entries.suffix(30).joined(separator: "\n")
-        if alert(localized("activity.title"), body, extraButton: localized("activity.copy")) == .alertSecondButtonReturn {
+        if alert(localized("activity.title"), body, extraButton: localized("activity.copy"),
+                 asList: true) == .alertSecondButtonReturn {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(entries.joined(separator: "\n"), forType: .string)
         }
@@ -429,7 +430,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // closed they threw and left the user staring at an unchanged dialog.
                 let response = self.alert(localized("check.title"),
                                           report.lines.joined(separator: "\n"),
-                                          extraButton: report.fixable.isEmpty ? nil : localized("check.fix"))
+                                          extraButton: report.fixable.isEmpty ? nil : localized("check.fix"),
+                                          asList: true)
                 guard response == .alertSecondButtonReturn else { return }
                 self.applyFixes(report.fixable)
             }
@@ -500,13 +502,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @discardableResult
-    private func alert(_ title: String, _ body: String, extraButton: String? = nil) -> NSApplication.ModalResponse {
+    private func alert(_ title: String, _ body: String, extraButton: String? = nil,
+                       asList: Bool = false) -> NSApplication.ModalResponse {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = title
-        alert.informativeText = body
+        if asList {
+            alert.accessoryView = Self.listView(body)
+        } else {
+            alert.informativeText = body
+        }
         alert.addButton(withTitle: localized("alert.ok"))
         if let extraButton { alert.addButton(withTitle: extraButton) }
+        // The list body is selectable so a line can be copied out, and taking it as the
+        // first responder costs the default button its highlight — the report came back
+        // from a screenshot with neither button looking like the one to press.
+        if asList { alert.window.initialFirstResponder = alert.buttons.first }
         return alert.runModal()
     }
+
+    /// A left-aligned, scrollable body for the two alerts that show lines rather than prose.
+    ///
+    /// `informativeText` is centred and the panel is narrow, which is right for a sentence
+    /// and wrong for a checklist: items wrapped mid-phrase and every line was centred under
+    /// the one above, so "Audio Quality → Lossless (or Hi-Res Lossless)" broke after "Hi-".
+    /// A list has to start each line in the same place to be read down.
+    private static func listView(_ body: String) -> NSView {
+        let text = NSTextView(frame: NSRect(x: 0, y: 0, width: listWidth, height: 0))
+        text.string = body
+        text.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        text.alignment = .left
+        text.isEditable = false
+        text.isSelectable = true           // so a line can be copied out of a report
+        text.drawsBackground = false
+        text.textContainerInset = .zero
+        text.textContainer?.containerSize = NSSize(width: listWidth, height: .greatestFiniteMagnitude)
+        text.textContainer?.widthTracksTextView = true
+        text.layoutManager?.ensureLayout(for: text.textContainer!)
+        let needed = text.layoutManager?.usedRect(for: text.textContainer!).height ?? 0
+
+        // Tall enough for the checklist, which should never scroll, and bounded for the
+        // activity log, which can be thirty lines.
+        let height = min(max(needed, 40), listMaxHeight)
+        text.frame = NSRect(x: 0, y: 0, width: listWidth, height: max(needed, height))
+
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: listWidth, height: height))
+        scroll.documentView = text
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = needed > height
+        scroll.autohidesScrollers = true
+        return scroll
+    }
+
+    private static let listWidth: CGFloat = 460
+    private static let listMaxHeight: CGFloat = 420
 }

@@ -1,2 +1,11 @@
 build/
 .DS_Store
+
+# Raw screenshots live here while they are being chosen; only the few the docs
+# actually use are versioned. Committing the folder wholesale once put 54 MB of
+# desktop captures in the history of a 2 MB repository.
+docs/images/*
+!docs/images/menu.png
+!docs/images/output-device.png
+!docs/images/bit-perfect-check.png
+!docs/images/warning.png

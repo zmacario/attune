@@ -17,6 +17,13 @@ Symptoms first, then the tools that answer questions the symptoms do not.
 | The wrong device is being used | Something was chosen in *Output device*, and rule 1 keeps it. `--resolve` prints which rule applied. |
 | It is 192 kHz in Music but 96 on the device | The device cannot do that rate. The menu says so, and `--list-devices` lists what each output accepts. |
 
+<img src="images/warning.png" width="342" alt="The menu with an orange bar icon and a warning triangle on Check bit-perfect setup.">
+<img src="images/bit-perfect-check.png" width="420" alt="The bit-perfect check: output, wire format, device rate, volume handling, and a cross against Music's own volume at 56%.">
+
+The warning lives on the item that resolves it, and the menu bar icon turns orange so you do
+not have to open the menu to know. The report says which of the two problems it is — here
+Music's own volume, which it offers to set back to 100% itself.
+
 `Show recent activity…` in the menu holds the app's recent decisions in plain words, and is
 the first place to look for anything not listed here. [Diagnostics](#diagnostics) goes
 further.

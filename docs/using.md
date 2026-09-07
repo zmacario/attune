@@ -80,6 +80,11 @@ and another DAC takes over on its own. That is why the tick in the submenu marks
 **in use** rather than the saved one — the two diverge exactly when the preferred one is away
 and another has taken over.
 
+<img src="images/output-device.png" width="600" alt="The Output device submenu: DACs listed first, then other outputs, with a tick on the one in use.">
+
+The submenu separates what it will adopt on its own from what it will only use if told:
+DACs above, everything else below. The tick marks the device **in use**.
+
 ### What counts as a DAC
 
 USB, Thunderbolt and FireWire. Bluetooth and AirPlay are excluded because they resample on
