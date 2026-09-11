@@ -9,6 +9,17 @@ else goes through CoreAudio's sample rate converter before it gets there.
 Works with any wired DAC. It was written against a Topping DX3 Pro+, which turns up as an
 example here and there, but nothing in the code knows about that device.
 
+## Watch it work
+
+<a href="https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4"><img src="docs/images/video-poster.jpg" width="440" alt="A five-track playlist playing while the rate beside the menu bar icon follows each track."></a>
+
+Thirty-six seconds, no sound. Five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate
+beside the menu bar icon following each one. Watch it change **before** the next track
+begins — the silence a rate change costs falls in the tail of the track that is ending,
+not on the first note of the one starting.
+
+Every frame is a screen recording. Nothing in it is animated or reconstructed.
+
 ## The rest of the documentation
 
 This page is enough to install it and see it work. Everything else lives beside it,
