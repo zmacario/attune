@@ -57,6 +57,26 @@ itself while the mirroring was broken. It now takes the expected side from the c
 - `build.sh --install` refuses to run while the app is open. Quit it from the menu first,
   or you will rebuild and carry on using the old copy without noticing.
 
+## Why the menu is built the way it is
+
+Three decisions that are invisible while they work.
+
+**The toggles are custom views.** An `NSMenu` closes as soon as an item is selected and there
+is no way to turn that off, so the six settings rows became their own views, absorbing the
+click — the menu never sees a selection at all. The real actions are ordinary items and still
+close.
+
+**The main menu is never rebuilt while open.** A rebuild tears out the row under the pointer,
+and the replacement starts unhighlighted, so the highlight vanishes until the mouse moves. The
+header updates its text in place instead; text changes move nothing. The device submenu is the
+exception, because a submenu has its own cycle — it is rebuilt from the same CoreAudio
+notification that triggers the rerouting, so a DAC plugged in with the menu already open shows
+up at once.
+
+**The header is always three rows.** The fixed count is what makes updating in place possible:
+any row that appeared or vanished would push the others up or down, and a toggle would slide
+out from under the cursor mid-click.
+
 ## The icon
 
 Drawn in code, in [tools/make-icon.swift](../tools/make-icon.swift), and packaged with

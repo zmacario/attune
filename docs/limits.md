@@ -114,7 +114,7 @@ it took subtracting rows by hand to see it at all.
 
 ### Where this was measured
 
-Every number in this README — the cost above, the 730 ms of DAC relock, the Apple Event
+Every number in this documentation — the cost above, the 730 ms of DAC relock, the Apple Event
 timings, the cache latency — came from this machine. Different hardware gives different
 numbers, the relock above all, which is a property of the DAC.
 

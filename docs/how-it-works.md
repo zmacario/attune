@@ -270,6 +270,12 @@ It only acts when **everything** is known, and does nothing when any piece is mi
 | its format is already cached | a track never heard has nothing to prepare |
 | more than 2.5 s left | too late to prepare |
 
+The first of those conditions carries the measurement that justifies it. Without the pause,
+Music keeps running while the DAC relocks and the player position advances by exactly the
+wall clock — **~0.74 s of the music is skipped** on every change. Pausing costs ~0.12 s more
+silence and loses nothing. The two sound alike precisely because they last about as long;
+only one of them keeps the music whole.
+
 If the track changes before the appointed time — you skipped, or Music ran ahead — the
 preparation stands down without doing anything
 (`pre-switch: track already changed, standing down`).
