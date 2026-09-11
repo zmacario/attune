@@ -11,12 +11,19 @@ example here and there, but nothing in the code knows about that device.
 
 ## Watch it work
 
-![The rate beside the menu bar icon goes from 96k to 192k while Proud Mary is still playing; only afterwards does the track change to Seven Nation Army.](docs/images/demo.gif)
+![The rate beside the menu bar icon reads 192k while Proud Mary is still playing; the track changes to Seven Nation Army only afterwards.](docs/images/demo.gif)
 
-The DAC is put on 192 kHz while *Proud Mary* — a 96 kHz track — is still playing. The rate
-is set for the track that is about to start, so the silence a rate change costs falls in the
-tail of the one that is ending rather than on the first note of the one beginning. Only
-afterwards does the track itself turn over.
+**A new track opens at its own rate, whole, from its first note.** That is the whole point,
+and it is harder than it sounds: a rate change costs the DAC about three quarters of a second
+to relock, and that silence has to fall somewhere.
+
+Attune chooses where. It sets the rate for the track that is coming while the current one is
+still finishing, so the pause lands in the last seconds of a track you have already heard
+rather than on the opening of the one you have not. Switching after the new track has begun
+puts it on that opening instead — see [how it compares](docs/limits.md#how-it-compares).
+
+The loop above is that ordering: 192 kHz is already set, and only then does *Seven Nation
+Army* start.
 
 [The whole thing, thirty-six seconds](https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4) —
 five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one. No sound.
