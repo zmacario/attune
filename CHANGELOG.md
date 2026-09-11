@@ -1,6 +1,25 @@
 # Changelog
 
 Newest first. Each released version is a tag on `main`; the wording is the tag's own.
+Anything under *Unreleased* is on `main` already, but carries no tag.
+
+## Unreleased
+
+**The front page shows the app working.** A looping GIF of the moment the whole argument
+rests on: the rate reaches 192 kHz while a 96 kHz track is still playing, and the track
+turns over only afterwards. The full thirty-six seconds — five tracks at 44.1, 48, 88.2, 96
+and 192 kHz, and the rate following each one — are attached to the v1.5 release rather than
+committed: 591 KB in the repository against 22 MB.
+
+**The page around it leads with what the app does rather than what it costs.** Four
+paragraphs opened on a limitation and reached the benefit only afterwards. The worst of them
+named the DAC the app was developed against — it said in the same breath that nothing in the
+code knows about that device, but a reader skimming takes away the model number. What stands
+there now is the opposite: any wired DAC, and the rule used when several are connected.
+
+Nothing was deleted to get there. The 0.74 s a change costs without the pause moved to *How
+it works*, beside the conditions it justifies, and the AppKit constraints that shaped the
+menu moved to *Working on it*. Both had been on the front page and nowhere else.
 
 ## v1.5 — 7 September 2026
 
