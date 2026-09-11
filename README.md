@@ -11,12 +11,15 @@ example here and there, but nothing in the code knows about that device.
 
 ## Watch it work
 
-<a href="https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4"><img src="docs/images/video-poster.jpg" width="440" alt="A five-track playlist playing while the rate beside the menu bar icon follows each track."></a>
+![The rate beside the menu bar icon goes from 96k to 192k while Proud Mary is still playing; only afterwards does the track change to Seven Nation Army.](docs/images/demo.gif)
 
-Thirty-six seconds, no sound. Five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate
-beside the menu bar icon following each one. Watch it change **before** the next track
-begins — the silence a rate change costs falls in the tail of the track that is ending,
-not on the first note of the one starting.
+The DAC is put on 192 kHz while *Proud Mary* — a 96 kHz track — is still playing. The rate
+is set for the track that is about to start, so the silence a rate change costs falls in the
+tail of the one that is ending rather than on the first note of the one beginning. Only
+afterwards does the track itself turn over.
+
+[The whole thing, thirty-six seconds](https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4) —
+five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one. No sound.
 
 Every frame is a screen recording. Nothing in it is animated or reconstructed.
 
