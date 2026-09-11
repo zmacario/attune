@@ -19,13 +19,8 @@ plugged in — and it follows the hardware as devices arrive and leave.
 A DAC takes a moment to settle on a new rate, so Attune sets the next track's rate while the
 current one is still finishing. By the time the new track begins, the DAC is already there.
 
-The loop above is that ordering: 192 kHz is set, and only then does *Seven Nation Army*
-start. [How it works](docs/how-it-works.md) has the timings.
-
 [The whole thing, thirty-six seconds](https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4) —
 five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one. No sound.
-
-Every frame is a screen recording. Nothing in it is animated or reconstructed.
 
 ## The rest of the documentation
 
