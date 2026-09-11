@@ -54,6 +54,8 @@ itself while the mirroring was broken. It now takes the expected side from the c
 - Without a signing certificate, each rebuild produces a new ad-hoc signature and macOS asks
   for the Media & Apple Music permission again. See
   [Why rebuilding asks again](using.md#why-rebuilding-asks-for-the-permission-again).
+- `build.sh --install` refuses to run while the app is open. Quit it from the menu first,
+  or you will rebuild and carry on using the old copy without noticing.
 
 ## The icon
 
