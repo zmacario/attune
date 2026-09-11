@@ -20,7 +20,7 @@ A DAC takes a moment to settle on a new rate, so Attune sets the next track's ra
 current one is still finishing. By the time the new track begins, the DAC is already there.
 
 [The whole thing, thirty-six seconds](https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4) —
-five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one. No sound.
+five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one.
 
 ## The rest of the documentation
 
