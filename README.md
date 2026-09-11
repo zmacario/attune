@@ -6,8 +6,21 @@ the DAC on the **track's own sample rate**, so macOS resamples nothing on the wa
 Without it the DAC sits at one rate — usually whatever someone last set — and everything
 else goes through CoreAudio's sample rate converter before it gets there.
 
-Works with any wired DAC. It was written against a Topping DX3 Pro+, which turns up as an
-example here and there, but nothing in the code knows about that device.
+**It works with any wired DAC** — USB, Thunderbolt or FireWire. With more than one
+connected it picks by rule: the one you chose in the app, otherwise the most recently
+plugged in — and it follows the hardware as devices arrive and leave.
+
+## Watch it work
+
+![The rate beside the menu bar icon reads 192k while Proud Mary is still playing; the track changes to Seven Nation Army only afterwards.](docs/images/demo.gif)
+
+**A new track opens at its own rate, whole, from its first note.**
+
+A DAC takes a moment to settle on a new rate, so Attune sets the next track's rate while the
+current one is still finishing. By the time the new track begins, the DAC is already there.
+
+[The whole thing, thirty-six seconds](https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4) —
+five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one.
 
 ## The rest of the documentation
 
@@ -35,7 +48,7 @@ system frameworks.
 
 ## Installing
 
-There is no download. Build it yourself — four commands:
+Build it yourself — four commands:
 
 ```bash
 git clone https://github.com/zmacario/Attune.git
@@ -50,26 +63,21 @@ A wave icon appears in the menu bar with the current rate beside it (`44.1k`, `9
 turns **orange** when something is spoiling bit-perfect playback, so you do not have to open
 the menu just to check.
 
-**Why build instead of download.** A downloaded app has to be notarized by Apple to open
-without a fight, and notarization needs a paid Developer ID. An app you compiled on your own
-machine is never quarantined, so none of that applies. It also means you can read what you
-are about to run.
+**Why build instead of download.** An app you compiled on your own machine is never
+quarantined, so it opens without a fight — no Gatekeeper prompt, and no one paying Apple for
+a Developer ID to make that true. It also means you can read what you are about to run.
 
-**Why the signing identity.** That script creates a self-signed certificate named
-`Attune Local` in your keychain. It is optional — skip it and the build signs ad-hoc — but
-without it macOS treats every rebuild as a brand new app and asks for the Media & Apple Music
-permission again each time. See
-[Why rebuilding asks again](docs/using.md#why-rebuilding-asks-for-the-permission-again). The script changes
-keychain trust settings, so it will ask for your approval.
+**Why the signing identity.** The third command creates a self-signed certificate named
+`Attune Local`, which lets macOS recognise every rebuild as the same app and keep the
+Media & Apple Music permission you granted it. It asks for your approval because it touches
+keychain trust, and it is optional —
+[the detail is here](docs/using.md#why-rebuilding-asks-for-the-permission-again).
 
 To build without installing:
 
 ```bash
 ./build.sh && open "build/Attune.app"
 ```
-
-`--install` refuses to run while the app is open — quit it from the menu first, or you will
-rebuild and carry on using the old copy.
 
 ## What it does for each track
 
@@ -80,12 +88,8 @@ rebuild and carry on using the old copy.
    significant positions.
 4. It warns you if Music's internal volume or its equaliser are spoiling the result.
 
-With *Pause during rate changes* on (the default), it pauses, reconfigures, and resumes where
-it left off. Worth it, measured: without the pause, Music keeps running while the DAC
-relocks, and the player position advances by exactly the wall clock — **~0.74 s of the music
-is skipped** on every change. The pause costs ~0.12 s more silence and loses nothing. The two
-sound alike precisely because they last about as long; only one of them keeps the music
-whole.
+**Not a note of the music is lost.** Attune pauses Music across a rate change and
+resumes exactly where it left off, so nothing of the recording is passed over.
 
 ## The menu
 
@@ -117,28 +121,21 @@ Quit
 
 Four behaviours that are not obvious from looking:
 
-**The toggles do not close the menu.** An `NSMenu` closes as soon as an item is selected and
-there is no way to turn that off, so the six of them became their own views, absorbing the
-click — the menu never sees a selection at all. You can set everything in one visit. The real
-actions (*Re-apply now*, *Check bit-perfect setup…*, *Quit*) still close, as expected.
+**The toggles do not close the menu.** You can set everything in one visit. The real
+actions (*Re-apply now*, *Check bit-perfect setup…*, *Quit*) close, as expected.
 
 **The device list follows the hardware.** Plugging or unplugging a DAC changes the submenu
-immediately, even with the menu already open — it is rebuilt from the same CoreAudio
-notification that triggers the rerouting. The main menu is still never rebuilt while open,
-because that would tear out the row under the pointer; a submenu has its own cycle.
+immediately, even with the menu already open.
 
-**The header is always three rows, and updates with the menu open.** The fixed count is what
-makes updating in place possible: any row that appeared or vanished would push the others up
-or down, and a toggle would slide out from under your cursor mid-click. Leave the menu open
-across a track change and watch the three rows change with nothing moving.
+**The header updates with the menu open.** Leave it open across a track change and watch
+the three rows change with nothing moving.
 
 **The warning lives in the item that resolves it.** Music's internal volume away from 100% or
 the equaliser switched on mark *Check bit-perfect setup…* with a ⚠️ and turn the menu bar icon
-orange. The detail is in the report, one click away — more informative than a summary line,
-and the header stays purely factual.
+orange. The detail is in the report, one click away.
 
-Music's volume and EQ change without notifying anyone — see
-[Periodic checking](docs/using.md#periodic-checking) below.
+Attune keeps an eye on both on its own — see
+[Periodic checking](docs/using.md#periodic-checking).
 
 ## License
 
