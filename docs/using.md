@@ -67,31 +67,42 @@ approval, you can do it through the interface instead: **Keychain Access → Cer
 Assistant → Create a Certificate**, name `Attune Local`, type *Code Signing*, self-signed.
 The name has to match exactly.
 
-## Which DAC it uses
+## Which output it uses
 
 Three rules, in this order:
 
 1. **The device last chosen in the app's menu**, if it is connected.
-2. Otherwise, **the most recently connected DAC**.
-3. Otherwise, **the built-in speakers**.
+2. Otherwise, **the most recently connected output**.
+3. Otherwise, **the system default output**.
+
+No rule reads the transport: every output is ordered and adopted the same way, so a monitor,
+a headset or a virtual device is treated exactly as a DAC is.
 
 The saved device is a preference that breaks ties, not a target the app waits for: unplug it
-and another DAC takes over on its own. That is why the tick in the submenu marks the device
+and another output takes over on its own. That is why the tick in the submenu marks the device
 **in use** rather than the saved one — the two diverge exactly when the preferred one is away
 and another has taken over.
 
-<img src="images/output-device.png" width="600" alt="The Output device submenu: DACs listed first, then other outputs, with a tick on the one in use.">
+<img src="images/output-device.png" width="600" alt="The Output device submenu: one list of every output, with a tick on the one in use.">
 
-The submenu separates what it will adopt on its own from what it will only use if told:
-DACs above, everything else below. The tick marks the device **in use**.
+The submenu is a single list of every output, with the transport beside each name and the tick
+on the one **in use**. Nothing in it is second class: whatever you pick is adopted and
+re-applied like any DAC.
 
-### What counts as a DAC
+### When the output cannot hold the track's rate
 
-USB, Thunderbolt and FireWire. Bluetooth and AirPlay are excluded because they resample on
-their own and cannot be bit-perfect. DisplayPort and HDMI are excluded from automatic
-adoption too — they are wired and they carry digital audio, but they are a monitor or a TV,
-not something for the app to adopt unasked. They remain choosable by hand, and a manual
-choice applies to any output.
+Every output has its own set of rates, and a track's own need not be among them — the built-in
+speakers top out at 96 kHz, so a 192 kHz track cannot be held exactly. Rather than leave the
+device wherever the previous track left it, the closest rate it can take is chosen:
+
+1. the exact rate, when the device has it;
+2. otherwise the fastest supported rate in a **whole-number ratio** to the track's — a divisor
+   or a multiple, so 192 kHz onto a 96 kHz ceiling is 96 and not the 88.2 that merely comes
+   next;
+3. otherwise the device's **highest** rate, as a resample of last resort.
+
+The substitution is real, so it is named rather than hidden: the menu bar icon turns orange
+and *Check bit-perfect setup…* shows both the track's rate and the one in use.
 
 ### Connection order
 
@@ -104,9 +115,9 @@ tie, and are separated by name so they do not swap places between runs.
 ### Plugging and unplugging
 
 The app listens on `kAudioHardwarePropertyDevices` and reroutes after 0.3 s — the pause is to
-let the HAL settle before asking what is left. It works both ways: unplugging the DAC that is
-playing sends the audio to the next one rather than leaving it on the speakers, and plugging
-a new DAC in brings it into play at once.
+let the HAL settle before asking what is left. It works both ways: unplugging the output that
+is playing sends the audio to the next one, and plugging a new one in brings it into play at
+once.
 
 This is **not** the same as the periodic check below. That one updates what the menu shows;
 it never reroutes anything. Treating the two as one problem is what left hot-plug unanswered

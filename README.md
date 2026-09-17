@@ -1,14 +1,15 @@
 # Attune
 
-A macOS menu bar app. When **Music** starts playing, it sends the audio to your DAC and puts
-the DAC on the **track's own sample rate**, so macOS resamples nothing on the way.
+A macOS menu bar app. When **Music** starts playing, it sends the audio to the output you pick
+and puts it on the **track's own sample rate**, so macOS resamples nothing on the way.
 
-Without it the DAC sits at one rate — usually whatever someone last set — and everything
+Without it the device sits at one rate — usually whatever someone last set — and everything
 else goes through CoreAudio's sample rate converter before it gets there.
 
-**It works with any wired DAC** — USB, Thunderbolt or FireWire. With more than one
-connected it picks by rule: the one you chose in the app, otherwise the most recently
-plugged in — and it follows the hardware as devices arrive and leave.
+**It works with any output** — a DAC on USB, Thunderbolt or FireWire, the built-in speakers,
+a monitor, a headset. With more than one connected it picks by rule: the one you chose in the
+app, otherwise the most recently connected output — and it follows the hardware as devices
+arrive and leave. No rule reads the transport: every output is a first-class target.
 
 ## Watch it work
 
@@ -16,8 +17,8 @@ plugged in — and it follows the hardware as devices arrive and leave.
 
 **A new track opens at its own rate, whole, from its first note.**
 
-A DAC takes a moment to settle on a new rate, so Attune sets the next track's rate while the
-current one is still finishing. By the time the new track begins, the DAC is already there.
+A device takes a moment to settle on a new rate, so Attune sets the next track's rate while the
+current one is still finishing. By the time the new track begins, the device is already there.
 
 [The whole thing, thirty-six seconds](https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4) —
 five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one.
@@ -27,7 +28,7 @@ five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one.
 This page is enough to install it and see it work. Everything else lives beside it,
 split by why you would open it:
 
-- **[Living with it](docs/using.md)** — permissions, which DAC it picks, and the settings that matter
+- **[Living with it](docs/using.md)** — permissions, which output it picks, and the settings that matter
 - **[How it works](docs/how-it-works.md)** — how a track's rate is found, remembered and applied ahead of time
 - **[What to expect](docs/limits.md)** — how it compares to what already exists, what it will not do, what it costs to run
 - **[When something is wrong](docs/troubleshooting.md)** — symptoms first, then the tools that answer what symptoms cannot
@@ -40,7 +41,7 @@ split by why you would open it:
 |---|---|
 | macOS | 13 or later (it uses `SMAppService`) |
 | Xcode Command Line Tools | `xcode-select --install` — full Xcode is not needed |
-| A wired DAC | USB, Thunderbolt or FireWire. See [Which DAC it uses](docs/using.md#which-dac-it-uses) |
+| An output | Anything macOS offers, wired or not. See [Which output it uses](docs/using.md#which-output-it-uses) |
 | Apple Music | The app follows Music, and does not play anything itself |
 
 Nothing else. There is no Xcode project, no package manager, and no dependencies beyond the
@@ -81,11 +82,13 @@ To build without installing:
 
 ## What it does for each track
 
-1. If the system output is not the DAC, it switches.
+1. If the system output is not the chosen one, it switches.
 2. It works out the track's own rate (details below).
-3. It sets the DAC to that rate and raises the wire format to the deepest the device offers.
-   Raising depth never makes anything worse: the extra bits arrive as zeros in the least
-   significant positions.
+3. It sets the output to that rate and raises the wire format to the deepest the device
+   offers. Raising depth never makes anything worse: the extra bits arrive as zeros in the
+   least significant positions. When the device cannot hold the track's own rate, it is put on
+   the closest one it can — the fastest whole-number ratio when there is one, its maximum
+   otherwise — and the menu bar icon turns orange to say so.
 4. It warns you if Music's internal volume or its equaliser are spoiling the result.
 
 **Not a note of the music is lost.** Attune pauses Music across a rate change and
@@ -107,7 +110,7 @@ Wire: 192 kHz 32-bit int (packed) 2ch                ← what goes out on the wi
 ☑ Set the next track's rate in advance
 ☑ Restore previous output when Music stops
 ─────────────────────────────────────────
-Output device                                     ▸   ← DACs in a group, updated live
+Output device                                     ▸   ← one list of every output, updated live
 When the rate is unknown                          ▸
 ─────────────────────────────────────────
 Re-apply now
@@ -124,7 +127,7 @@ Four behaviours that are not obvious from looking:
 **The toggles do not close the menu.** You can set everything in one visit. The real
 actions (*Re-apply now*, *Check bit-perfect setup…*, *Quit*) close, as expected.
 
-**The device list follows the hardware.** Plugging or unplugging a DAC changes the submenu
+**The device list follows the hardware.** Plugging or unplugging an output changes the submenu
 immediately, even with the menu already open.
 
 **The header updates with the menu open.** Leave it open across a track change and watch
