@@ -17,6 +17,7 @@
 "check.output" = "• Output: %@ at %@";
 "check.rateDiffers" = "✗ Device rate does not match the track (%@)";
 "check.rateMatches" = "✓ Device rate matches the track (%@)";
+"check.rateSubstituted" = "• Device can't do %@; holding %@ instead";
 "check.soundCheck" = "  • Sound Check: off";
 "check.soundEnhancer" = "  • Sound Enhancer: off";
 "check.title" = "Bit-perfect check";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Wire format: %@";
 "engine.eqProblem" = "EQ is on";
 "engine.rateUnsupported" = "%@ can't do %@.";
+"engine.rateSubstitutedRatio" = "%@ can't do %@; using %@, a whole-number ratio of it.";
+"engine.rateSubstitutedMax" = "%@ can't do %@; using its highest rate, %@.";
 "engine.setRateFailed" = "Failed to set %@";
 "engine.switchFailed" = "Could not switch the output device.";
 "engine.volumeProblem" = "Music volume at %ld%%";

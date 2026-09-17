@@ -464,7 +464,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let wire = device.currentPhysicalFormat { lines.append(localized("check.wireFormat", wire.describedBriefly)) }
             if let detected = status.detected {
                 let matched = abs(device.nominalSampleRate - detected.sampleRate) < 1
-                lines.append(localized(matched ? "check.rateMatches" : "check.rateDiffers", detected.displaySummary))
+                if matched {
+                    lines.append(localized("check.rateMatches", detected.displaySummary))
+                } else if let target = device.targetRate(for: detected.sampleRate),
+                          abs(target - detected.sampleRate) >= 1,
+                          abs(device.nominalSampleRate - target) < 1 {
+                    // The rate on the device is the stand-in this output can actually hold, so
+                    // this is not a mismatch to correct but a substitution to name.
+                    lines.append(localized("check.rateSubstituted", detected.displaySummary,
+                                           rateLabel(target, forDisplay: true)))
+                } else {
+                    lines.append(localized("check.rateDiffers", detected.displaySummary))
+                }
             }
             lines.append(localized(device.hasHardwareVolumeControl ? "check.volumeHardware" : "check.volumeNone"))
         }

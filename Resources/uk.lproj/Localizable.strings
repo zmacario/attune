@@ -17,6 +17,7 @@
 "check.output" = "• Вихід: %@ на %@";
 "check.rateDiffers" = "✗ Частота пристрою не збігається з треком (%@)";
 "check.rateMatches" = "✓ Частота пристрою збігається з треком (%@)";
+"check.rateSubstituted" = "• Пристрій не підтримує %@; утримується %@";
 "check.soundCheck" = "  • Перевірка звуку: вимкнено";
 "check.soundEnhancer" = "  • Покращення звуку: вимкнено";
 "check.title" = "Перевірка bit-perfect";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Формат виводу: %@";
 "engine.eqProblem" = "Еквалайзер увімкнено";
 "engine.rateUnsupported" = "%@ не підтримує %@.";
+"engine.rateSubstitutedRatio" = "%@ не підтримує %@; використовується %@ — ціле відношення до неї.";
+"engine.rateSubstitutedMax" = "%@ не підтримує %@; використовується максимальна частота, %@.";
 "engine.setRateFailed" = "Не вдалося встановити %@";
 "engine.switchFailed" = "Не вдалося змінити пристрій виводу.";
 "engine.volumeProblem" = "Гучність «Музики» — %ld%%";

@@ -17,6 +17,7 @@
 "check.output" = "• Ausgabe: %@ mit %@";
 "check.rateDiffers" = "✗ Geräterate passt nicht zum Titel (%@)";
 "check.rateMatches" = "✓ Geräterate passt zum Titel (%@)";
+"check.rateSubstituted" = "• Gerät kann kein %@; hält stattdessen %@";
 "check.soundCheck" = "  • Sound Check: aus";
 "check.soundEnhancer" = "  • Klangverbesserung: aus";
 "check.title" = "Bit-perfect-Prüfung";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Ausgabeformat: %@";
 "engine.eqProblem" = "Equalizer ist an";
 "engine.rateUnsupported" = "%@ kann kein %@.";
+"engine.rateSubstitutedRatio" = "%@ kann kein %@; verwendet %@, ein ganzzahliges Verhältnis davon.";
+"engine.rateSubstitutedMax" = "%@ kann kein %@; verwendet seine höchste Rate, %@.";
 "engine.setRateFailed" = "%@ konnte nicht gesetzt werden";
 "engine.switchFailed" = "Das Ausgabegerät ließ sich nicht wechseln.";
 "engine.volumeProblem" = "Lautstärke von Musik bei %ld%%";

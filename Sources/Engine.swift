@@ -230,7 +230,11 @@ final class Engine {
         work.async { [weak self] in
             guard let self, Date() >= self.suppressUntil,
                   let device = self.settings.resolveTargetDevice() else { return }
-            guard abs(device.nominalSampleRate - format.sampleRate) >= 1 else { return }
+            // Compared against the rate the device would actually take, not the track's own: on
+            // a device that cannot hold it, the substitute is what the device is on, and testing
+            // against the track would re-apply the same substitute on every notification.
+            guard let target = device.targetRate(for: format.sampleRate),
+                  abs(device.nominalSampleRate - target) >= 1 else { return }
             Log.write("remembered \(format.summary) for \(name); applying before asking Music")
             var status = self.status
             self.applyFormat(format, to: device, into: &status)
@@ -331,6 +335,12 @@ final class Engine {
 
         // 3. Flag the two things that would quietly undo all of the above.
         next.hygieneProblem = Engine.hygieneProblem(snapshot.hygiene)
+        // Written here rather than inside the rate change: the pre-switch applies the rate ahead
+        // of time and would otherwise pass it over, and a real failure outranks a substitution.
+        // Both turn the icon orange, but only one of them is a device that cannot be made right.
+        if next.problem == nil, settings.matchSampleRate, let detected = next.detected {
+            next.problem = Engine.substitutionWarning(detected, on: fresh)
+        }
 
         publish(next)
     }
@@ -446,8 +456,11 @@ final class Engine {
             Log.write("pre-switch: \(upNext.name) never heard, nothing to prepare")
             return
         }
-        guard abs(device.nominalSampleRate - format.sampleRate) >= 1 else { return }
-        guard device.supportedSampleRates.contains(where: { abs($0 - format.sampleRate) < 1 }) else { return }
+        // The rate the device would actually take for this track, so one that cannot hold the
+        // track's own is prepared at its substitute rather than standing down as if nothing
+        // were known about it.
+        guard let target = device.targetRate(for: format.sampleRate),
+              abs(device.nominalSampleRate - target) >= 1 else { return }
 
         let remaining = track.duration - track.position
         let delay = remaining - Self.preSwitchMargin
@@ -456,7 +469,7 @@ final class Engine {
             return
         }
 
-        Log.write("pre-switch: \(upNext.name) needs \(rateLabel(format.sampleRate)), device at "
+        Log.write("pre-switch: \(upNext.name) needs \(rateLabel(target)), device at "
                   + "\(rateLabel(device.nominalSampleRate)); in \(String(format: "%.1f", delay))s")
         arm(format, name: upNext.name, duration: track.duration, after: delay)
     }
@@ -531,8 +544,12 @@ final class Engine {
             Log.write("pre-switch: no target device, standing down")
             return
         }
-        guard abs(device.nominalSampleRate - format.sampleRate) >= 1 else {
-            Log.write("pre-switch: device already at \(rateLabel(format.sampleRate)), nothing to prepare")
+        guard let target = device.targetRate(for: format.sampleRate) else {
+            Log.write("pre-switch: \(device.name) has no usable rate, standing down")
+            return
+        }
+        guard abs(device.nominalSampleRate - target) >= 1 else {
+            Log.write("pre-switch: device already at \(rateLabel(target)), nothing to prepare")
             return
         }
 
@@ -548,9 +565,16 @@ final class Engine {
                              into status: inout EngineStatus) {
         let supported = device.supportedSampleRates
         Log.write("applyFormat: want \(rateLabel(format.sampleRate)), device supports \(supported.map { rateLabel($0) }.joined(separator: "/"))")
-        guard let rate = supported.first(where: { abs($0 - format.sampleRate) < 1 }) else {
+        guard let rate = AudioDevice.bestRate(for: format.sampleRate, supported: supported) else {
             status.problem = localized("engine.rateUnsupported", device.name, rateLabel(format.sampleRate, forDisplay: true))
             return
+        }
+        if abs(rate - format.sampleRate) >= 1 {
+            // The track's own rate is not among the device's, so the fastest one that stays in a
+            // whole-number ratio to it is taken, or failing that the device's maximum. Real, not
+            // absorbed: the number beside the icon will not be the track's, and the caller turns
+            // that into the standing warning.
+            Log.write("applyFormat: \(rateLabel(format.sampleRate)) not supported; substituting \(rateLabel(rate))")
         }
         guard abs(device.nominalSampleRate - rate) >= 1 else {
             Log.write("applyFormat: already at \(rateLabel(rate)), nothing to do")
@@ -651,6 +675,25 @@ final class Engine {
         if hygiene.volume != 100 { issues.append(localized("engine.volumeProblem", hygiene.volume)) }
         if hygiene.eqEnabled { issues.append(localized("engine.eqProblem")) }
         return issues.joined(separator: ", ")
+    }
+
+    /// The device cannot hold the track's rate, so a stand-in was chosen. Reported rather than
+    /// passed over: the rate beside the icon will not be the track's, and without a word the only
+    /// way to notice would be to compare two readings by eye. Which kind of stand-in matters —
+    /// an exact whole-number ratio is the same clock divided or multiplied, a device's maximum is
+    /// a resample onto a foreign one.
+    private static func substitutionWarning(_ format: TrackFormat, on device: AudioDevice) -> String? {
+        guard let rate = device.targetRate(for: format.sampleRate),
+              abs(rate - format.sampleRate) >= 1 else { return nil }
+        let name = device.name
+        let track = rateLabel(format.sampleRate, forDisplay: true)
+        let chosen = rateLabel(rate, forDisplay: true)
+        // Keys spelled out at the call, not built from a variable: check-localization.py scans
+        // the source for the literals, and a key assembled at runtime would look unused and go
+        // unchecked in the languages that have to carry it.
+        return AudioDevice.isIntegerRatio(rate, format.sampleRate)
+            ? localized("engine.rateSubstitutedRatio", name, track, chosen)
+            : localized("engine.rateSubstitutedMax", name, track, chosen)
     }
 
     func refreshStatus() {

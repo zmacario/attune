@@ -17,6 +17,7 @@
 "check.output" = "• Uscita: %@ a %@";
 "check.rateDiffers" = "✗ La frequenza del dispositivo non corrisponde al brano (%@)";
 "check.rateMatches" = "✓ La frequenza del dispositivo corrisponde al brano (%@)";
+"check.rateSubstituted" = "• Il dispositivo non supporta %@; mantiene %@";
 "check.soundCheck" = "  • Sound Check: disattivato";
 "check.soundEnhancer" = "  • Ottimizzatore audio: disattivato";
 "check.title" = "Verifica bit-perfect";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Formato di uscita: %@";
 "engine.eqProblem" = "L'equalizzatore è attivo";
 "engine.rateUnsupported" = "%@ non supporta %@.";
+"engine.rateSubstitutedRatio" = "%@ non supporta %@; uso %@, un rapporto intero con essa.";
+"engine.rateSubstitutedMax" = "%@ non supporta %@; uso la sua frequenza più alta, %@.";
 "engine.setRateFailed" = "Impossibile impostare %@";
 "engine.switchFailed" = "Impossibile cambiare dispositivo di uscita.";
 "engine.volumeProblem" = "Volume di Musica al %ld%%";
