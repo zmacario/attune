@@ -3,7 +3,7 @@
 Newest first. Each released version is a tag on `main`; the wording is the tag's own.
 Anything under *Unreleased* is on `main` already, but carries no tag.
 
-## Unreleased
+## v1.6 — 17 September 2026
 
 **Any output is a target, by the same rules.** The transport no longer decides anything: the
 menu is one list, and USB, Thunderbolt, FireWire, Bluetooth, AirPlay, DisplayPort, HDMI and
