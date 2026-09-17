@@ -192,7 +192,7 @@ final class Settings {
         targetDeviceName = device.name
     }
 
-    /// When each connected DAC was plugged in, by UID.
+    /// When each connected output was plugged in, by UID.
     ///
     /// CoreAudio does not report how long a device has been attached, so the app keeps its
     /// own record: a UID that turns up where it was not before is stamped now, and one
@@ -203,10 +203,13 @@ final class Settings {
         set { defaults.set(newValue, forKey: "connectionTimes") }
     }
 
-    /// The connected DACs, most recently plugged in first.
-    func dacsByRecency(_ outputs: [AudioDevice]) -> [AudioDevice] {
-        let dacs = outputs.filter(\.isWiredDAC)
-        let present = Set(dacs.map(\.uid))
+    /// The connected outputs, most recently plugged in first.
+    ///
+    /// Every output, not only the ones on an external cable: the rules no longer read the
+    /// transport, so a monitor's HDMI, a headset or the built-in speakers are ordered here
+    /// exactly as a DAC is, and any of them can be adopted on its own.
+    func outputsByRecency(_ outputs: [AudioDevice]) -> [AudioDevice] {
+        let present = Set(outputs.map(\.uid))
         var times = connectionTimes
 
         // One timestamp for the whole sweep: calling Date() inside the loop gave each
@@ -227,7 +230,7 @@ final class Settings {
 
         // Everything plugged in before the app first ran shares one timestamp; name is the
         // tie-break so the order does not shuffle between launches.
-        return dacs.sorted {
+        return outputs.sorted {
             let left = times[$0.uid] ?? .distantPast
             let right = times[$1.uid] ?? .distantPast
             return left == right ? $0.name < $1.name : left > right
@@ -237,16 +240,16 @@ final class Settings {
     /// What `--resolve` prints: the ordering the rules are applied to, and why one won.
     func explainResolution() -> String {
         let outputs = AudioDevice.allOutputs()
-        let dacs = dacsByRecency(outputs)     // populates the record before it is read
+        let ordered = outputsByRecency(outputs)     // populates the record before it is read
         let times = connectionTimes
         let stamp = DateFormatter()
         stamp.dateFormat = "HH:mm:ss"
 
-        var lines = ["DACs by recency:"]
-        if dacs.isEmpty { lines.append("    (none connected)") }
-        for dac in dacs {
-            let seen = times[dac.uid].map { stamp.string(from: $0) } ?? "?"
-            lines.append("    \(dac.name)  (\(dac.transport))  connected \(seen)")
+        var lines = ["Outputs by recency:"]
+        if ordered.isEmpty { lines.append("    (none connected)") }
+        for device in ordered {
+            let seen = times[device.uid].map { stamp.string(from: $0) } ?? "?"
+            lines.append("    \(device.name)  (\(device.transport))  connected \(seen)")
         }
 
         let preferred = targetDeviceName ?? "(never chosen)"
@@ -255,8 +258,8 @@ final class Settings {
 
         let rule: String
         if preferredPresent { rule = "1. the device chosen in the app" }
-        else if !dacs.isEmpty { rule = "2. most recently connected DAC" }
-        else { rule = "3. built-in speakers" }
+        else if !ordered.isEmpty { rule = "2. most recently connected output" }
+        else { rule = "3. the system default output" }
         lines.append("Rule applied: \(rule)")
         lines.append("Target: \(resolveTargetDevice()?.name ?? "none")")
         return lines.joined(separator: "\n")
@@ -265,14 +268,15 @@ final class Settings {
     /// Where the audio should go, in the order the user asked for:
     ///
     /// 1. the device they last chose in this app, if it is connected;
-    /// 2. otherwise the most recently connected DAC;
-    /// 3. otherwise the built-in speakers.
+    /// 2. otherwise the most recently connected output;
+    /// 3. otherwise the system default output.
     ///
-    /// The saved device is a preference rather than something the app waits around for: a
-    /// DAC that turns up can take over without anyone opening a menu.
+    /// No rule reads the transport: any output chosen in the menu is a first-class target, and
+    /// any output that turns up can take over without anyone opening a menu. The saved device is
+    /// a preference rather than something the app waits around for.
     func resolveTargetDevice() -> AudioDevice? {
         let outputs = AudioDevice.allOutputs()
-        let dacs = dacsByRecency(outputs)
+        let ordered = outputsByRecency(outputs)
 
         if let uid = targetDeviceUID, let match = outputs.first(where: { $0.uid == uid }) {
             // Backfill the name whenever the device is present, both to migrate settings
@@ -280,7 +284,7 @@ final class Settings {
             if match.name != targetDeviceName { targetDeviceName = match.name }
             return match
         }
-        if let mostRecent = dacs.first { return mostRecent }
-        return outputs.first { $0.transport == "Built-in" } ?? AudioDevice.defaultOutput
+        if let mostRecent = ordered.first { return mostRecent }
+        return AudioDevice.defaultOutput
     }
 }

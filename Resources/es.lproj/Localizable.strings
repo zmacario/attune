@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "Acerca de Attune";
 "about.credits" = "Mantiene tu DAC en la frecuencia nativa de lo que Música esté reproduciendo, para que macOS no tenga nada que remuestrear.";
-"menu.noDAC" = "Ningún DAC conectado";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "Otras salidas";
+"menu.noDAC" = "Ningún dispositivo de salida";
 "source.player" = "reproductor";
 "source.cache" = "recordado";

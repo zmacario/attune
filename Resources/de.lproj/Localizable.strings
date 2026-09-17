@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "Über Attune";
 "about.credits" = "Hält deinen DAC auf der nativen Abtastrate dessen, was Musik gerade abspielt, damit macOS nichts umzurechnen hat.";
-"menu.noDAC" = "Kein DAC verbunden";
-"menu.dacs" = "DACs";
-"menu.otherOutputs" = "Andere Ausgaben";
+"menu.noDAC" = "Kein Ausgabegerät verbunden";
 "source.player" = "Player";
 "source.cache" = "gemerkt";

@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "حول Attune";
 "about.credits" = "يُبقي المحوِّل لديك على معدل العيّنات الأصلي لما تشغّله الموسيقى، فلا يبقى لدى macOS ما يعيد أخذ عيّناته.";
-"menu.noDAC" = "لا يوجد محوِّل متصل";
-"menu.dacs" = "المحوِّلات";
-"menu.otherOutputs" = "مخارج أخرى";
+"menu.noDAC" = "لا يوجد جهاز إخراج متصل";
 "source.player" = "المشغّل";
 "source.cache" = "محفوظ";

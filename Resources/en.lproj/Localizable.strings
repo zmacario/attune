@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "About Attune";
 "about.credits" = "Keeps your DAC on the native sample rate of whatever Music is playing, so macOS has nothing to resample.";
-"menu.noDAC" = "No DAC connected";
-"menu.dacs" = "DACs";
-"menu.otherOutputs" = "Other outputs";
+"menu.noDAC" = "No output device";
 "source.player" = "player";
 "source.cache" = "remembered";

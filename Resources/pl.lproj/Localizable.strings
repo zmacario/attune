@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "O programie Attune";
 "about.credits" = "Utrzymuje DAC na natywnej częstotliwości tego, co odtwarza Muzyka, aby macOS nie miał czego przepróbkowywać.";
-"menu.noDAC" = "Nie podłączono DAC";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "Inne wyjścia";
+"menu.noDAC" = "Nie podłączono urządzenia wyjściowego";
 "source.player" = "odtwarzacz";
 "source.cache" = "zapamiętane";

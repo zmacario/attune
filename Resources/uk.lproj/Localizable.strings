@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "Про програму Attune";
 "about.credits" = "Тримає ваш ЦАП на власній частоті того, що відтворює «Музика», щоб macOS не мав чого переробляти.";
-"menu.noDAC" = "ЦАП не під’єднано";
-"menu.dacs" = "ЦАП";
-"menu.otherOutputs" = "Інші виходи";
+"menu.noDAC" = "Пристрій виведення не під’єднано";
 "source.player" = "плеєр";
 "source.cache" = "запам’ятовано";

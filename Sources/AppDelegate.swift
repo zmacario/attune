@@ -237,28 +237,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // differ whenever the preferred one is unplugged and another has taken over, and
         // showing the preference there would point at a device doing nothing.
         let active = settings.resolveTargetDevice()
-        let outputs = AudioDevice.allOutputs()
-        let dacs = outputs.filter(\.isWiredDAC)
-        let others = outputs.filter { !$0.isWiredDAC }
 
-        func addSection(_ title: String, _ devices: [AudioDevice]) {
-            guard !devices.isEmpty else { return }
-            if sub.numberOfItems > 0 { sub.addItem(.separator()) }
-            let header = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            header.isEnabled = false
-            sub.addItem(header)
-            for device in devices {
-                let item = NSMenuItem(title: "    \(device.name)  (\(device.transport))",
-                                      action: #selector(pickDevice(_:)), keyEquivalent: "")
-                item.target = self
-                item.representedObject = device
-                item.state = device.uid == active?.uid ? .on : .off
-                sub.addItem(item)
-            }
+        // One flat list, every output. No DACs section above an "other outputs" one: the rules
+        // no longer read the transport, so nothing here separates what will be adopted on its
+        // own from what will not — the transport is a tag beside the name and nothing more.
+        for device in AudioDevice.allOutputs() {
+            let item = NSMenuItem(title: "\(device.name)  (\(device.transport))",
+                                  action: #selector(pickDevice(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = device
+            item.state = device.uid == active?.uid ? .on : .off
+            sub.addItem(item)
         }
-
-        addSection(localized("menu.dacs"), dacs)
-        addSection(localized("menu.otherOutputs"), others)
     }
 
     private func fallbackMenu() -> NSMenuItem {

@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@（%@）";
 "menu.about" = "关于 Attune";
 "about.credits" = "让你的 DAC 始终保持在“音乐”正在播放内容的原生采样率，使 macOS 无需重采样。";
-"menu.noDAC" = "未连接 DAC";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "其他输出";
+"menu.noDAC" = "未连接输出设备";
 "source.player" = "播放器";
 "source.cache" = "已记住";

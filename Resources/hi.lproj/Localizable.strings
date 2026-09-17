@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "Attune के बारे में";
 "about.credits" = "आपके DAC को उसी सैंपल दर पर रखता है जिस पर Music चल रहा है, ताकि macOS को कुछ भी दोबारा सैंपल न करना पड़े।";
-"menu.noDAC" = "कोई DAC कनेक्ट नहीं";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "अन्य आउटपुट";
+"menu.noDAC" = "कोई आउटपुट डिवाइस कनेक्ट नहीं";
 "source.player" = "प्लेयर";
 "source.cache" = "याद किया हुआ";

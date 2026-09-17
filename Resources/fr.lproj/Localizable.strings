@@ -70,8 +70,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "À propos d'Attune";
 "about.credits" = "Maintient votre DAC à la fréquence native de ce que Musique lit, pour que macOS n'ait rien à rééchantillonner.";
-"menu.noDAC" = "Aucun DAC connecté";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "Autres sorties";
+"menu.noDAC" = "Aucun périphérique de sortie";
 "source.player" = "lecteur";
 "source.cache" = "mémorisé";
