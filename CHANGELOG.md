@@ -5,6 +5,21 @@ Anything under *Unreleased* is on `main` already, but carries no tag.
 
 ## Unreleased
 
+**Any output is a target, by the same rules.** The transport no longer decides anything: the
+menu is one list, and USB, Thunderbolt, FireWire, Bluetooth, AirPlay, DisplayPort, HDMI and
+virtual devices are ordered, adopted and re-applied alike. The saved preference still wins
+when it is present, but below it the most recently connected output takes over whatever it is
+— so a monitor or a headset can be adopted on its own, which is the point of treating them
+the same.
+
+**A device that cannot hold the track's rate is given the closest one it can, and warned
+about.** A 192 kHz track onto 96 kHz speakers used to leave them wherever the previous track
+had put them — 88.2 kHz in the case that prompted this, because nothing was changed and
+nothing was said. The fastest supported rate in a whole-number ratio to the track's is now
+chosen (192 → 96), or the device's maximum when no ratio exists, and the substitution is
+reported: the menu bar icon turns orange and the bit-perfect check names both rates. Tested
+against the cases that fix the shape of the rule, in `tools/test-rate-choice.sh`.
+
 **The front page shows the app working.** A looping GIF of the moment the whole argument
 rests on: the rate reaches 192 kHz while a 96 kHz track is still playing, and the track
 turns over only afterwards. The full thirty-six seconds — five tracks at 44.1, 48, 88.2, 96
@@ -15,7 +30,7 @@ committed: 591 KB in the repository against 22 MB.
 paragraphs opened on a limitation and reached the benefit only afterwards. The worst of them
 named the DAC the app was developed against — it said in the same breath that nothing in the
 code knows about that device, but a reader skimming takes away the model number. What stands
-there now is the opposite: any wired DAC, and the rule used when several are connected.
+there now is the opposite: any output, and the rule used when several are connected.
 
 Nothing was deleted to get there. The 0.74 s a change costs without the pause moved to *How
 it works*, beside the conditions it justifies, and the AppKit constraints that shaped the

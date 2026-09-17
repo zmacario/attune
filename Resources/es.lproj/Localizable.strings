@@ -17,6 +17,7 @@
 "check.output" = "• Salida: %@ a %@";
 "check.rateDiffers" = "✗ La frecuencia del dispositivo no coincide con la pista (%@)";
 "check.rateMatches" = "✓ La frecuencia del dispositivo coincide con la pista (%@)";
+"check.rateSubstituted" = "• El dispositivo no admite %@; usando %@";
 "check.soundCheck" = "  • Ajuste de sonido: desactivado";
 "check.soundEnhancer" = "  • Mejorador de sonido: desactivado";
 "check.title" = "Comprobación bit-perfect";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Formato de salida: %@";
 "engine.eqProblem" = "El ecualizador está activado";
 "engine.rateUnsupported" = "%@ no admite %@.";
+"engine.rateSubstitutedRatio" = "%@ no admite %@; usando %@, una proporción entera de ella.";
+"engine.rateSubstitutedMax" = "%@ no admite %@; usando su frecuencia más alta, %@.";
 "engine.setRateFailed" = "No se pudo ajustar a %@";
 "engine.switchFailed" = "No se pudo cambiar el dispositivo de salida.";
 "engine.volumeProblem" = "Volumen de Música al %ld%%";
@@ -70,8 +73,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "Acerca de Attune";
 "about.credits" = "Mantiene tu DAC en la frecuencia nativa de lo que Música esté reproduciendo, para que macOS no tenga nada que remuestrear.";
-"menu.noDAC" = "Ningún DAC conectado";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "Otras salidas";
+"menu.noDAC" = "Ningún dispositivo de salida";
 "source.player" = "reproductor";
 "source.cache" = "recordado";

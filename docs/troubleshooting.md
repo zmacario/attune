@@ -15,7 +15,7 @@ Symptoms first, then the tools that answer questions the symptoms do not.
 | Streamed tracks all play at 44.1 kHz | The player log is not being read, and every stream is falling back to the configured guess. `Show recent activity…` records why it stood down. |
 | A rate change interrupts the new track's first second | *Set the next track's rate in advance* is off, or one of the things it needs is missing — shuffle is on, or that track has not been heard before. |
 | The wrong device is being used | Something was chosen in *Output device*, and rule 1 keeps it. `--resolve` prints which rule applied. |
-| It is 192 kHz in Music but 96 on the device | The device cannot do that rate. The menu says so, and `--list-devices` lists what each output accepts. |
+| The icon is orange, or the device rate is not the track's | The output cannot hold the track's rate, so the closest one it can is used — a whole-number ratio when there is one, its maximum otherwise — and the substitution is named. `--list-devices` lists what each output accepts. |
 
 <img src="images/warning.png" width="342" alt="The menu with an orange bar icon and a warning triangle on Check bit-perfect setup.">
 <img src="images/bit-perfect-check.png" width="420" alt="The bit-perfect check: output, wire format, device rate, volume handling, and a cross against Music's own volume at 56%.">
@@ -37,9 +37,10 @@ To understand which device the app chose and why:
 ```
 
 ```
-DACs by recency:
-    DX3 Pro+  (USB)  connected 16:54:56
+Outputs by recency:
     HiBy FC4  (USB)  connected 17:02:11
+    DX3 Pro+  (USB)  connected 16:54:56
+    MacBook Pro Speakers  (Built-in)  connected 16:40:12
 Chosen in app: DX3 Pro+ — connected
 Rule applied: 1. the device chosen in the app
 Target: DX3 Pro+

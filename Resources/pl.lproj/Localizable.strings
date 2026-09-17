@@ -17,6 +17,7 @@
 "check.output" = "• Wyjście: %@ przy %@";
 "check.rateDiffers" = "✗ Częstotliwość urządzenia nie zgadza się z utworem (%@)";
 "check.rateMatches" = "✓ Częstotliwość urządzenia zgadza się z utworem (%@)";
+"check.rateSubstituted" = "• Urządzenie nie obsługuje %@; utrzymuje %@";
 "check.soundCheck" = "  • Sound Check: wyłączone";
 "check.soundEnhancer" = "  • Wzmacniacz dźwięku: wyłączony";
 "check.title" = "Kontrola bit-perfect";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Format wyjścia: %@";
 "engine.eqProblem" = "Korektor jest włączony";
 "engine.rateUnsupported" = "%@ nie obsługuje %@.";
+"engine.rateSubstitutedRatio" = "%@ nie obsługuje %@; używana jest %@, całkowita wielokrotność.";
+"engine.rateSubstitutedMax" = "%@ nie obsługuje %@; używana jest jego najwyższa częstotliwość, %@.";
 "engine.setRateFailed" = "Nie udało się ustawić %@";
 "engine.switchFailed" = "Nie udało się zmienić urządzenia wyjściowego.";
 "engine.volumeProblem" = "Głośność Muzyki na %ld%%";
@@ -70,8 +73,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "O programie Attune";
 "about.credits" = "Utrzymuje DAC na natywnej częstotliwości tego, co odtwarza Muzyka, aby macOS nie miał czego przepróbkowywać.";
-"menu.noDAC" = "Nie podłączono DAC";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "Inne wyjścia";
+"menu.noDAC" = "Nie podłączono urządzenia wyjściowego";
 "source.player" = "odtwarzacz";
 "source.cache" = "zapamiętane";

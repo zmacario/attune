@@ -17,6 +17,7 @@
 "check.output" = "• الإخراج: %@ عند %@";
 "check.rateDiffers" = "✗ معدل الجهاز لا يطابق المقطع (%@)";
 "check.rateMatches" = "✓ معدل الجهاز يطابق المقطع (%@)";
+"check.rateSubstituted" = "• الجهاز لا يدعم %@؛ يتم الإبقاء على %@";
 "check.soundCheck" = "  • فحص الصوت: مُعطَّل";
 "check.soundEnhancer" = "  • مُحسِّن الصوت: مُعطَّل";
 "check.title" = "فحص الدقة التامة";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• صيغة الإخراج: %@";
 "engine.eqProblem" = "المُعادِل مُفعَّل";
 "engine.rateUnsupported" = "%@ لا يدعم %@.";
+"engine.rateSubstitutedRatio" = "%@ لا يدعم %@؛ يتم استخدام %@ بنسبة عدد صحيح منها.";
+"engine.rateSubstitutedMax" = "%@ لا يدعم %@؛ يتم استخدام أعلى معدل له، %@.";
 "engine.setRateFailed" = "تعذَّر الضبط على %@";
 "engine.switchFailed" = "تعذَّر تبديل جهاز الإخراج.";
 "engine.volumeProblem" = "مستوى صوت الموسيقى %ld%%";
@@ -70,8 +73,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "حول Attune";
 "about.credits" = "يُبقي المحوِّل لديك على معدل العيّنات الأصلي لما تشغّله الموسيقى، فلا يبقى لدى macOS ما يعيد أخذ عيّناته.";
-"menu.noDAC" = "لا يوجد محوِّل متصل";
-"menu.dacs" = "المحوِّلات";
-"menu.otherOutputs" = "مخارج أخرى";
+"menu.noDAC" = "لا يوجد جهاز إخراج متصل";
 "source.player" = "المشغّل";
 "source.cache" = "محفوظ";

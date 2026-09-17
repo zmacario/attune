@@ -44,7 +44,8 @@ opens the HLS variant and reads rate and depth from the container itself. No dep
 the log, and no waiting.
 
 **It picks the device by rule.** Three rules (your choice, else the most recently connected
-DAC, else the speakers), reacting to plugging and unplugging. The others either use the
+output, else the system default), reacting to plugging and unplugging, and reading no
+transport — a monitor or a headset is adopted exactly as a DAC is. The others either use the
 current device or leave the choice entirely to you.
 
 **It warns about what cancels everything out.** Music's internal volume below 100% or the
@@ -139,7 +140,8 @@ Outputs present during the tests:
 The **DX3 Pro+** was the target for most of the testing, including the 30 rate changes that
 established the 724–740 ms relock, and the pre-switched transitions. The **HiBy FC4** served
 to verify selection by connection order with two DACs present. The DisplayPort entry is in
-the list deliberately: it is **not** adopted as a DAC, and it served to confirm that.
+the list deliberately: a monitor is now ordered and adopted like any other output, and it
+served to confirm that.
 
 The test tracks came from a *Favourite Songs* playlist in Apple Music, with material at
 44.1 kHz (16- and 24-bit), 48 kHz and 96 kHz/24-bit, both downloaded and streamed.

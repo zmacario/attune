@@ -17,6 +17,7 @@
 "check.output" = "• आउटपुट: %@ पर %@";
 "check.rateDiffers" = "✗ डिवाइस की दर ट्रैक से मेल नहीं खाती (%@)";
 "check.rateMatches" = "✓ डिवाइस की दर ट्रैक से मेल खाती है (%@)";
+"check.rateSubstituted" = "• डिवाइस %@ नहीं कर सकता; %@ बनाए रखा है";
 "check.soundCheck" = "  • साउंड चेक: बंद";
 "check.soundEnhancer" = "  • साउंड एन्हांसर: बंद";
 "check.title" = "बिट-परफ़ेक्ट जाँच";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• वायर फ़ॉर्मैट: %@";
 "engine.eqProblem" = "इक्वलाइज़र चालू है";
 "engine.rateUnsupported" = "%@ %@ नहीं कर सकता।";
+"engine.rateSubstitutedRatio" = "%@ %@ नहीं कर सकता; %@ का उपयोग, जो उसका पूर्णांक अनुपात है।";
+"engine.rateSubstitutedMax" = "%@ %@ नहीं कर सकता; उसकी उच्चतम दर %@ का उपयोग।";
 "engine.setRateFailed" = "%@ सेट नहीं हो सका";
 "engine.switchFailed" = "आउटपुट डिवाइस नहीं बदल सका।";
 "engine.volumeProblem" = "Music का वॉल्यूम %ld%% पर";
@@ -70,8 +73,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "Attune के बारे में";
 "about.credits" = "आपके DAC को उसी सैंपल दर पर रखता है जिस पर Music चल रहा है, ताकि macOS को कुछ भी दोबारा सैंपल न करना पड़े।";
-"menu.noDAC" = "कोई DAC कनेक्ट नहीं";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "अन्य आउटपुट";
+"menu.noDAC" = "कोई आउटपुट डिवाइस कनेक्ट नहीं";
 "source.player" = "प्लेयर";
 "source.cache" = "याद किया हुआ";

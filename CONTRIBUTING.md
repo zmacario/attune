@@ -11,7 +11,7 @@ usually the whole answer. Paste it, along with:
 - what you expected and what happened instead;
 - the output of `"/Applications/Attune.app/Contents/MacOS/Attune" --resolve`, which says which
   device the app chose and by which of the three rules;
-- your macOS version, your DAC, and whether the track was downloaded or streamed.
+- your macOS version, which output you use, and whether the track was downloaded or streamed.
 
 If a rate came out wrong, `--list-devices` and `--inspect <track.movpkg>` say what the device
 accepts and what the file actually contains.
@@ -39,7 +39,7 @@ tools/test-player-log.sh
 tools/test-movpkg.sh
 tools/test-layout.sh
 tools/test-locale-safety.sh
-tools/test-switching.sh 8 1.2   # drives Music; needs a DAC connected
+tools/test-switching.sh 8 1.2   # drives Music; needs an output connected
 ```
 
 ## Translations

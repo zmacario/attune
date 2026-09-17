@@ -24,7 +24,8 @@ written.
 | `Resources/*.lproj` | Interface text, one directory per language |
 | `tools/make-icon.swift` | Draws the icon; `make-icon.sh` packages it with `iconutil` |
 | `tools/check-localization.py` | Fails the build on a missing translation |
-| `tools/test-switching.sh` | The full verification cycle: reinstall, skip tracks, check the DAC |
+| `tools/test-switching.sh` | The full verification cycle: reinstall, skip tracks, check the device |
+| `tools/test-rate-choice.sh` | Which rate is chosen when the device cannot hold the track's own |
 | `tools/test-locale-safety.sh` | Round-trips a cache entry through eight locales and compares the bytes |
 | `tools/test-movpkg.sh` | Parses every real package, then a corpus of damaged ones, each in its own process |
 | `tools/make-damaged-movpkg.py` | Builds that corpus: truncations, bit flips, noise, and hand-made broken boxes |
@@ -70,8 +71,8 @@ close.
 and the replacement starts unhighlighted, so the highlight vanishes until the mouse moves. The
 header updates its text in place instead; text changes move nothing. The device submenu is the
 exception, because a submenu has its own cycle — it is rebuilt from the same CoreAudio
-notification that triggers the rerouting, so a DAC plugged in with the menu already open shows
-up at once.
+notification that triggers the rerouting, so a device plugged in with the menu already open
+shows up at once.
 
 **The header is always three rows.** The fixed count is what makes updating in place possible:
 any row that appeared or vanished would push the others up or down, and a toggle would slide

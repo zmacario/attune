@@ -17,6 +17,7 @@
 "check.output" = "• Выход: %@ на %@";
 "check.rateDiffers" = "✗ Частота устройства не совпадает с треком (%@)";
 "check.rateMatches" = "✓ Частота устройства совпадает с треком (%@)";
+"check.rateSubstituted" = "• Устройство не поддерживает %@; удерживается %@";
 "check.soundCheck" = "  • Проверка звука: выкл.";
 "check.soundEnhancer" = "  • Улучшение звука: выкл.";
 "check.title" = "Проверка bit-perfect";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Формат вывода: %@";
 "engine.eqProblem" = "Эквалайзер включён";
 "engine.rateUnsupported" = "%@ не поддерживает %@.";
+"engine.rateSubstitutedRatio" = "%@ не поддерживает %@; используется %@ — целое отношение к ней.";
+"engine.rateSubstitutedMax" = "%@ не поддерживает %@; используется максимальная частота, %@.";
 "engine.setRateFailed" = "Не удалось установить %@";
 "engine.switchFailed" = "Не удалось сменить устройство вывода.";
 "engine.volumeProblem" = "Громкость «Музыки» — %ld%%";
@@ -70,8 +73,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "О программе Attune";
 "about.credits" = "Держит ваш ЦАП на исходной частоте того, что играет «Музыка», чтобы macOS нечего было пересчитывать.";
-"menu.noDAC" = "ЦАП не подключён";
-"menu.dacs" = "ЦАП";
-"menu.otherOutputs" = "Другие выходы";
+"menu.noDAC" = "Устройство вывода не подключено";
 "source.player" = "плеер";
 "source.cache" = "запомнено";

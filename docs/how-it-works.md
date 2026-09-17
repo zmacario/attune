@@ -61,6 +61,26 @@ instead of being rejected as the broken file it announces. Truncation at 100 len
 flipped at every seventh byte of the header, sixty rounds of random corruption and four
 thousand levels of nesting all came back clean.
 
+### When the rate does not exist on the device
+
+Finding the track's rate is only half of it: the device has to be able to hold it, and often it
+cannot. The built-in output tops out at 96 kHz, so a 192 kHz track — resolved correctly, and
+valid in Music — has no exact rate to be set to.
+
+The old behaviour was to do nothing, which left the device wherever the previous track had put
+it. That is how a 192 kHz track came to play into 88.2 kHz: not a wrong reading, but a stale one
+that only looked wrong because it sat beside the track's own.
+
+The rule now picks, in order: the exact rate; failing that, the fastest supported rate in a
+whole-number ratio to the track's — a divisor or a multiple, so 192 onto 96 is 96 and not the
+88.2 that merely comes next; failing that, the device's maximum. It lives in
+`AudioDevice.bestRate(for:supported:)` as a pure function, so it is tested on its own
+(`tools/test-rate-choice.sh`) rather than only through whatever hardware happens to be attached.
+
+A substitution is a resample, and it is named: the menu bar icon turns orange and the
+bit-perfect check shows both the track's rate and the one in use. Never silently — that silence
+was the whole reason the stale rate was worth noticing in the first place.
+
 ### Remembering what has been heard
 
 Where the time goes, measured: resolving costs **3 ms**; the other ~330 are the

@@ -17,6 +17,7 @@
 "check.output" = "• 输出：%@，%@";
 "check.rateDiffers" = "✗ 设备采样率与曲目不符（%@）";
 "check.rateMatches" = "✓ 设备采样率与曲目一致（%@）";
+"check.rateSubstituted" = "• 设备不支持 %@；改用 %@";
 "check.soundCheck" = "  • 音量平衡：关闭";
 "check.soundEnhancer" = "  • 声音增强器：关闭";
 "check.title" = "比特完美检查";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• 传输格式：%@";
 "engine.eqProblem" = "均衡器已开启";
 "engine.rateUnsupported" = "%@ 不支持 %@。";
+"engine.rateSubstitutedRatio" = "%@ 不支持 %@；改用 %@，为其整数倍。";
+"engine.rateSubstitutedMax" = "%@ 不支持 %@；改用其最高采样率 %@。";
 "engine.setRateFailed" = "无法设置为 %@";
 "engine.switchFailed" = "无法切换输出设备。";
 "engine.volumeProblem" = "“音乐”音量为 %ld%%";
@@ -70,8 +73,6 @@
 "menu.trackFormat" = "%@（%@）";
 "menu.about" = "关于 Attune";
 "about.credits" = "让你的 DAC 始终保持在“音乐”正在播放内容的原生采样率，使 macOS 无需重采样。";
-"menu.noDAC" = "未连接 DAC";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "其他输出";
+"menu.noDAC" = "未连接输出设备";
 "source.player" = "播放器";
 "source.cache" = "已记住";

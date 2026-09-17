@@ -17,6 +17,7 @@
 "check.output" = "• Sortie : %@ à %@";
 "check.rateDiffers" = "✗ La fréquence de l'appareil ne correspond pas au morceau (%@)";
 "check.rateMatches" = "✓ La fréquence de l'appareil correspond au morceau (%@)";
+"check.rateSubstituted" = "• L'appareil ne gère pas %@ ; maintien de %@";
 "check.soundCheck" = "  • Égaliseur de volume : désactivé";
 "check.soundEnhancer" = "  • Améliorateur de son : désactivé";
 "check.title" = "Vérification bit-perfect";
@@ -25,6 +26,8 @@
 "check.wireFormat" = "• Format de sortie : %@";
 "engine.eqProblem" = "L'égaliseur est activé";
 "engine.rateUnsupported" = "%@ ne gère pas %@.";
+"engine.rateSubstitutedRatio" = "%@ ne gère pas %@ ; utilisation de %@, un rapport entier avec celle-ci.";
+"engine.rateSubstitutedMax" = "%@ ne gère pas %@ ; utilisation de sa fréquence la plus élevée, %@.";
 "engine.setRateFailed" = "Impossible de régler sur %@";
 "engine.switchFailed" = "Impossible de changer d'appareil de sortie.";
 "engine.volumeProblem" = "Volume de Musique à %ld%%";
@@ -70,8 +73,6 @@
 "menu.trackFormat" = "%@ (%@)";
 "menu.about" = "À propos d'Attune";
 "about.credits" = "Maintient votre DAC à la fréquence native de ce que Musique lit, pour que macOS n'ait rien à rééchantillonner.";
-"menu.noDAC" = "Aucun DAC connecté";
-"menu.dacs" = "DAC";
-"menu.otherOutputs" = "Autres sorties";
+"menu.noDAC" = "Aucun périphérique de sortie";
 "source.player" = "lecteur";
 "source.cache" = "mémorisé";

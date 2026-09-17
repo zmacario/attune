@@ -69,15 +69,6 @@ struct AudioDevice: Identifiable, Hashable {
     let outputChannels: Int
     let transport: String
 
-    /// An external converter on a cable. Excludes Bluetooth and AirPlay, which resample
-    /// on their own and cannot be bit-perfect anyway, and the built-in output, which is
-    /// not a device anyone buys a DAC to avoid using.
-    ///
-    /// DisplayPort and HDMI are deliberately out: they are wired and they do carry digital
-    /// audio, but they are a monitor or a TV, not something to adopt on sight. They stay
-    /// selectable by hand.
-    var isWiredDAC: Bool { ["USB", "Thunderbolt", "FireWire"].contains(transport) }
-
     static func allOutputs() -> [AudioDevice] {
         CA.array(CA.system, CA.addr(kAudioHardwarePropertyDevices), AudioDeviceID.self)
             .compactMap { AudioDevice($0) }
@@ -140,6 +131,36 @@ struct AudioDevice: Identifiable, Hashable {
             }
             .reduce(into: [Double]()) { if !$0.contains($1) { $0.append($1) } }
             .sorted()
+    }
+
+    /// The rate to put this device on for a track at `trackRate`.
+    ///
+    /// What ends up beside the menu bar icon is the device's own rate, not the track's, so
+    /// the two have to be reconciled here rather than left to disagree.
+    func targetRate(for trackRate: Double) -> Double? {
+        AudioDevice.bestRate(for: trackRate, supported: supportedSampleRates)
+    }
+
+    /// The exact rate first. Failing that, the fastest rate the device accepts that stands
+    /// in a whole-number ratio to the track's — a divisor or a multiple, so a 192 kHz track
+    /// onto a 96 kHz ceiling is 96 and not the 88.2 that merely happens to be adjacent.
+    /// Only when nothing divides or multiplies evenly is the device's own maximum taken: a
+    /// resample of last resort rather than of first choice.
+    static func bestRate(for trackRate: Double, supported: [Double]) -> Double? {
+        let rates = supported.filter { $0 > 0 }.sorted()
+        guard !rates.isEmpty else { return nil }
+        guard trackRate > 0 else { return rates.last }
+        if let exact = rates.first(where: { abs($0 - trackRate) < 1 }) { return exact }
+        return rates.last(where: { AudioDevice.isIntegerRatio($0, trackRate) }) ?? rates.last
+    }
+
+    /// Whether one rate is a whole-number divisor or multiple of the other. A tolerance
+    /// rather than equality, because these arrive as floats: 88.2/44.1 is 2.0000000000000004,
+    /// and a strict comparison would reject the very relationship this exists to find.
+    static func isIntegerRatio(_ a: Double, _ b: Double) -> Bool {
+        guard a > 0, b > 0 else { return false }
+        let ratio = max(a, b) / min(a, b)
+        return abs(ratio - ratio.rounded()) < 1e-6
     }
 
     static let standardRates: [Double] = [
