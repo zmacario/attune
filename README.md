@@ -20,7 +20,7 @@ arrive and leave. No rule reads the transport: every output is a first-class tar
 A device takes a moment to settle on a new rate, so Attune sets the next track's rate while the
 current one is still finishing. By the time the new track begins, the device is already there.
 
-[The whole thing, thirty-six seconds](https://github.com/zmacario/Attune/releases/download/v1.5/Attune-demo.mp4) —
+[The whole thing, thirty-six seconds](https://github.com/zmacario/attune/releases/download/v1.5/Attune-demo.mp4) —
 five tracks at 44.1, 48, 88.2, 96 and 192 kHz, and the rate following each one.
 
 ## The rest of the documentation
@@ -52,8 +52,8 @@ system frameworks.
 Build it yourself — four commands:
 
 ```bash
-git clone https://github.com/zmacario/Attune.git
-cd Attune
+git clone https://github.com/zmacario/attune.git
+cd attune
 ./tools/create-signing-identity.sh
 ./build.sh --install
 ```
